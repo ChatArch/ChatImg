@@ -1,0 +1,9 @@
+site_name: ChatImg 文档
+site_url: https://ChatArch.github.io/ChatImg
+repo_url: https://github.com/ChatArch/ChatImg
+theme:
+  name: material
+  language: zh
+nav:
+  - 首页: index.md
+  - English: index.en.md
