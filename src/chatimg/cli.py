@@ -1,16 +1,8 @@
-"""CLI entrypoint for chatimg."""
+"""CLI entrypoint for ChatImg."""
 
-import click
+from chatimg.image.cli import main
 
-from chatimg import __version__
-
-
-@click.group()
-@click.version_option(__version__, prog_name="chatimg")
-def main() -> None:
-    """chatimg command line interface."""
-    # Add package-specific commands here. Prefer ChatStyle helpers for
-    # interactive input when a command needs recoverable user input.
+__all__ = ["main"]
 
 
 if __name__ == "__main__":
