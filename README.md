@@ -17,35 +17,123 @@
 
 # ChatImg
 
-ChatImg image generation package
+ChatImg 是 ChatArch 的图片生成包，承接原 `chattool image` 中已经解耦的 provider 实现。
 
-## 快速开始
+当前支持：
+
+- `codex` / `openai-codex`：ChatGPT/Codex OAuth image bridge，支持 `gpt-image-2-*` preset。
+- `pollinations`：Pollinations.ai image URL generation and model listing。
+- `siliconflow`：SiliconFlow OpenAI-compatible image generation。
+- `huggingface`：Hugging Face Inference image generation。
+- `liblib`：LiblibAI signed API generation。
+- `tongyi`：通义万相 / DashScope image generation。
+
+## 安装
+
+开发安装：
 
 ```bash
 pip install -e ".[dev]"
-chatimg --help
-chatimg --version
-python -m pytest -q
-python -m build
 ```
 
-## CLI 规范
+通义万相 SDK 可选依赖：
 
-这个模板默认依赖 `chatstyle>=0.1.0,<0.2.0` 和 `chatenv>=0.2.0,<0.3.0`，新的命令应优先使用：
+```bash
+pip install -e ".[images]"
+```
 
-- `CommandSchema` / `CommandField` 描述输入。
-- `add_interactive_option()` 提供统一 `-i/-I`。
-- `resolve_command_inputs()` 统一缺参补问、默认值、TTY 与校验。
-- 默认生成 `config.py` 和 `chatenv.configs` entry point，使包可被 ChatEnv 发现；只有明确不需要 ChatEnv 接入时才使用 `--without-chatenv-provider`。
+## CLI
 
-## 目录结构
+```bash
+chatimg --help
+chatimg --version
+chatimg codex list-models
+chatimg pollinations list-models
+```
 
-- `src/`：包源码
-- `tests/code-tests/`：代码测试和历史测试迁移
-- `tests/cli-tests/`：真实 CLI 测试，doc-first
-- `tests/mock-cli-tests/`：mock/fake CLI 测试，doc-first
-- `docs/`：长期维护文档，由 mkdocs 构建
+生成示例：
 
-## 开发说明
+```bash
+chatimg codex generate "a watercolor fox in the snow" --aspect-ratio square -o fox.png
+chatimg pollinations generate "a cyberpunk cat" --model flux --width 512 --height 512 -o cat.png
+chatimg siliconflow generate "a cute dog" --size 1024x1024 -o dog.png
+chatimg huggingface generate "A futuristic city at night" -o city.png
+chatimg liblib generate "A cute dog" --model-id liblib-sdxl-model -o dog.png
+chatimg tongyi generate "一只赛博朋克猫" --size "1024*1024" -o cat.png
+```
 
-扩展脚手架前，先阅读 `DEVELOP.md` 和 `AGENTS.md`。
+### Codex / GPT Image2 实测示例
+
+`codex` provider 走 ChatGPT/Codex OAuth-backed Responses API，请求里的 image tool model 是 `gpt-image-2`。它不是外部 Codex CLI。
+
+常用配置字段：
+
+- `OPENAI_CODEX_ACCESS_TOKEN`：历史 Codex image access token 变量；也兼容 `OPENAI_ACCESS_TOKEN`。
+- `OPENAI_CODEX_AUTH_JSON`：Hermes auth.json 路径；默认 `~/.hermes/auth.json`，用于复用本机 `openai-codex` 登录态。
+- `OPENAI_CODEX_HOST_MODEL`：承载 `image_generation` tool 的 host model，默认 `gpt-5.4`。
+- `OPENAI_CODEX_BASE_URL`：Codex backend base URL，默认 `https://chatgpt.com/backend-api/codex`。
+- `OPENAI_CODEX_TIMEOUT`：请求超时秒数，默认 `300`。
+- `OPENAI_IMAGE_MODEL`：默认 image preset，默认 `gpt-image-2-medium`。
+- `OPENAI_IMAGE_ASPECT_RATIO`：默认图片比例，默认 `square`。
+
+基础验收图：
+
+```bash
+chatimg codex generate \
+  "A clean minimal ChatImg acceptance test illustration: a friendly robot holding a small picture frame, modern flat design, white background, no text" \
+  --image-model gpt-image-2-low \
+  --aspect-ratio square \
+  -o generated/chatimg-gpt-image2-basic.png \
+  --timeout 300
+```
+
+快速排序流程图：
+
+```bash
+chatimg codex generate \
+  "Create a clean landscape technical design flowchart explaining quicksort. Use this exact example array: [6, 3, 8, 5, 1, 10, 2]. Pick pivot = 5. Partition correctly: left part [3, 1, 2] labeled < pivot, right part [6, 8, 10] labeled > pivot. Include steps: START, base case length <= 1?, pick pivot, partition array, recursively sort left part, recursively sort right part, concatenate sorted-left + pivot + sorted-right, END. Modern vector style, white background, blue/orange accents, arrows, decision diamond, readable simple English labels. Avoid mathematical mistakes." \
+  --image-model gpt-image-2-medium \
+  --aspect-ratio landscape \
+  -o generated/chatimg-gpt-image2-quicksort-flowchart.png \
+  --timeout 300
+```
+
+## Python API
+
+```python
+from chatimg.image import create_generator
+
+generator = create_generator("codex")
+result = generator.generate("A cute cat astronaut")
+```
+
+## 配置
+
+ChatImg 注册了 `chatenv.configs` entry point：
+
+```toml
+chatimg = "chatimg.config"
+```
+
+支持的主要环境变量：
+
+- `OPENAI_ACCESS_TOKEN`, `OPENAI_CODEX_ACCESS_TOKEN`, `OPENAI_CODEX_AUTH_JSON`, `OPENAI_REFRESH_TOKEN`, `OPENAI_OAUTH_BASE_URL`, `OPENAI_ACCESS_TOKEN_EXPIRES_AT`, `OPENAI_IMAGE_MODEL`, `OPENAI_IMAGE_ASPECT_RATIO`, `OPENAI_CODEX_HOST_MODEL`, `OPENAI_CODEX_BASE_URL`, `OPENAI_CODEX_TIMEOUT`
+- `POLLINATIONS_API_KEY`, `POLLINATIONS_MODEL_ID`
+- `SILICONFLOW_API_KEY`, `SILICONFLOW_MODEL_ID`
+- `HUGGINGFACE_HUB_TOKEN`
+- `LIBLIB_ACCESS_KEY`, `LIBLIB_SECRET_KEY`, `LIBLIB_MODEL_ID`
+- `DASHSCOPE_API_KEY`
+
+## 开发验证
+
+```bash
+PYTHONPATH=src python -m pytest -q
+PYTHONPATH=src python -m chatimg.cli --help
+PYTHONPATH=src python -m chatimg.cli codex list-models
+python -m build
+python -m twine check dist/*
+```
+
+## 发布状态
+
+PyPI `chatimg==0.0.1` 是占位版本；`0.1.0` 源码已准备为首个功能版本，但 tag / PyPI 正式发布需单独确认。
