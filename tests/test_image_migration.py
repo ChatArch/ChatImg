@@ -244,21 +244,19 @@ def test_codex_model_presets_and_payload_shape():
     assert payload["tools"][0]["size"] == "1536x1024"
 
 
-def test_codex_uses_codex_env_aliases(monkeypatch):
+def test_codex_uses_access_token_env(monkeypatch):
     from chatimg.config import OpenAIConfig
     from chatimg.image.codex import CodexImageGenerator
 
     original = {
         "OPENAI_ACCESS_TOKEN": OpenAIConfig.OPENAI_ACCESS_TOKEN.value,
-        "OPENAI_CODEX_ACCESS_TOKEN": OpenAIConfig.OPENAI_CODEX_ACCESS_TOKEN.value,
         "OPENAI_IMAGE_ASPECT_RATIO": OpenAIConfig.OPENAI_IMAGE_ASPECT_RATIO.value,
         "OPENAI_CODEX_HOST_MODEL": OpenAIConfig.OPENAI_CODEX_HOST_MODEL.value,
         "OPENAI_CODEX_BASE_URL": OpenAIConfig.OPENAI_CODEX_BASE_URL.value,
         "OPENAI_CODEX_TIMEOUT": OpenAIConfig.OPENAI_CODEX_TIMEOUT.value,
     }
     try:
-        OpenAIConfig.OPENAI_ACCESS_TOKEN.value = ""
-        OpenAIConfig.OPENAI_CODEX_ACCESS_TOKEN.value = "not-a-jwt"
+        OpenAIConfig.OPENAI_ACCESS_TOKEN.value = "not-a-jwt"
         OpenAIConfig.OPENAI_IMAGE_ASPECT_RATIO.value = "portrait"
         OpenAIConfig.OPENAI_CODEX_HOST_MODEL.value = "gpt-5.4"
         OpenAIConfig.OPENAI_CODEX_BASE_URL.value = "https://chatgpt.com/backend-api/codex"
@@ -408,7 +406,6 @@ def test_chatenv_config_contains_image_provider_fields():
         "SILICONFLOW_API_KEY",
         "SILICONFLOW_MODEL_ID",
         "OPENAI_ACCESS_TOKEN",
-        "OPENAI_CODEX_ACCESS_TOKEN",
         "OPENAI_REFRESH_TOKEN",
         "OPENAI_CODEX_AUTH_JSON",
         "OPENAI_OAUTH_BASE_URL",

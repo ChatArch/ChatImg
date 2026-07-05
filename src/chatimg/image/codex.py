@@ -183,11 +183,7 @@ class CodexImageGenerator(ImageGenerator):
                 raise ValueError("OPENAI_ACCESS_TOKEN is expired")
             return token
 
-        configured_token = (
-            OpenAIConfig.OPENAI_ACCESS_TOKEN.value
-            or OpenAIConfig.OPENAI_CODEX_ACCESS_TOKEN.value
-            or ""
-        ).strip()
+        configured_token = (OpenAIConfig.OPENAI_ACCESS_TOKEN.value or "").strip()
         if configured_token:
             configured_expires_at = (
                 OpenAIConfig.OPENAI_ACCESS_TOKEN_EXPIRES_AT.value or ""
@@ -210,7 +206,6 @@ class CodexImageGenerator(ImageGenerator):
 
         raise ValueError(
             "No usable OpenAI OAuth access token found. Set OPENAI_ACCESS_TOKEN "
-            "or OPENAI_CODEX_ACCESS_TOKEN in the ChatImg/OpenAI chatenv profile, "
             "or point OPENAI_CODEX_AUTH_JSON to a Hermes auth.json with a valid openai-codex login."
         )
 

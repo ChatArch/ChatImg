@@ -33,7 +33,7 @@ The `codex` provider uses the ChatGPT/Codex OAuth-backed Responses API. The requ
 
 Common configuration fields:
 
-- `OPENAI_CODEX_ACCESS_TOKEN`: legacy Codex image access token variable; `OPENAI_ACCESS_TOKEN` is also supported.
+- `OPENAI_ACCESS_TOKEN`: OpenAI/ChatGPT OAuth access token for the Codex image path.
 - `OPENAI_CODEX_AUTH_JSON`: Hermes auth.json path; defaults to `~/.hermes/auth.json` for reusing the local `openai-codex` login.
 - `OPENAI_CODEX_HOST_MODEL`: host model that invokes the `image_generation` tool; defaults to `gpt-5.4`.
 - `OPENAI_CODEX_BASE_URL`: Codex backend base URL; defaults to `https://chatgpt.com/backend-api/codex`.

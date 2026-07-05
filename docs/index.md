@@ -33,7 +33,7 @@ chatimg pollinations generate "a cyberpunk cat" --model flux --width 512 --heigh
 
 常用配置字段：
 
-- `OPENAI_CODEX_ACCESS_TOKEN`：历史 Codex image access token 变量；也兼容 `OPENAI_ACCESS_TOKEN`。
+- `OPENAI_ACCESS_TOKEN`：OpenAI/ChatGPT OAuth access token，用于 Codex image 旧路径。
 - `OPENAI_CODEX_AUTH_JSON`：Hermes auth.json 路径；默认 `~/.hermes/auth.json`，用于复用本机 `openai-codex` 登录态。
 - `OPENAI_CODEX_HOST_MODEL`：承载 `image_generation` tool 的 host model，默认 `gpt-5.4`。
 - `OPENAI_CODEX_BASE_URL`：Codex backend base URL，默认 `https://chatgpt.com/backend-api/codex`。

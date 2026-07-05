@@ -29,7 +29,6 @@ def build_openai_oauth_status(*, env_file: str | Path | None = None) -> dict[str
     """Return safe OpenAI OAuth token metadata without secret values."""
     return {
         "access_token": _present(OpenAIConfig.OPENAI_ACCESS_TOKEN.value),
-        "codex_access_token": _present(OpenAIConfig.OPENAI_CODEX_ACCESS_TOKEN.value),
         "refresh_token": _present(OpenAIConfig.OPENAI_REFRESH_TOKEN.value),
         "codex_auth_json": str(OpenAIConfig.OPENAI_CODEX_AUTH_JSON.value or ""),
         "oauth_base_url": str(OpenAIConfig.OPENAI_OAUTH_BASE_URL.value or ""),

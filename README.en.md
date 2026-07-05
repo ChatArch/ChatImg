@@ -68,7 +68,7 @@ The `codex` provider uses the ChatGPT/Codex OAuth-backed Responses API. The requ
 
 Common configuration fields:
 
-- `OPENAI_CODEX_ACCESS_TOKEN`: legacy Codex image access token variable; `OPENAI_ACCESS_TOKEN` is also supported.
+- `OPENAI_ACCESS_TOKEN`: OpenAI/ChatGPT OAuth access token for the Codex image path.
 - `OPENAI_CODEX_AUTH_JSON`: Hermes auth.json path; defaults to `~/.hermes/auth.json` for reusing the local `openai-codex` login.
 - `OPENAI_CODEX_HOST_MODEL`: host model that invokes the `image_generation` tool; defaults to `gpt-5.4`.
 - `OPENAI_CODEX_BASE_URL`: Codex backend base URL; defaults to `https://chatgpt.com/backend-api/codex`.
@@ -117,7 +117,7 @@ chatimg = "chatimg.config"
 
 Main supported environment variables:
 
-- `OPENAI_ACCESS_TOKEN`, `OPENAI_CODEX_ACCESS_TOKEN`, `OPENAI_CODEX_AUTH_JSON`, `OPENAI_REFRESH_TOKEN`, `OPENAI_OAUTH_BASE_URL`, `OPENAI_ACCESS_TOKEN_EXPIRES_AT`, `OPENAI_IMAGE_MODEL`, `OPENAI_IMAGE_ASPECT_RATIO`, `OPENAI_CODEX_HOST_MODEL`, `OPENAI_CODEX_BASE_URL`, `OPENAI_CODEX_TIMEOUT`
+- `OPENAI_ACCESS_TOKEN`, `OPENAI_CODEX_AUTH_JSON`, `OPENAI_REFRESH_TOKEN`, `OPENAI_OAUTH_BASE_URL`, `OPENAI_ACCESS_TOKEN_EXPIRES_AT`, `OPENAI_IMAGE_MODEL`, `OPENAI_IMAGE_ASPECT_RATIO`, `OPENAI_CODEX_HOST_MODEL`, `OPENAI_CODEX_BASE_URL`, `OPENAI_CODEX_TIMEOUT`
 - `POLLINATIONS_API_KEY`, `POLLINATIONS_MODEL_ID`
 - `SILICONFLOW_API_KEY`, `SILICONFLOW_MODEL_ID`
 - `HUGGINGFACE_HUB_TOKEN`
