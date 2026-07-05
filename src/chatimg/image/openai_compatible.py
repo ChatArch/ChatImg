@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import requests
-from chatenv.configs import OpenAIConfig
+from chatimg.config import OpenAIConfig
 
 from .base import ImageGenerator
 
@@ -38,8 +38,8 @@ def _normalize_image_model(model: str | None) -> tuple[str, str | None]:
     active_env = _load_active_openai_env()
     value = (
         model
-        or OpenAIConfig.OPENAI_IMAGE_MODEL.value
         or active_env.get("OPENAI_IMAGE_MODEL")
+        or OpenAIConfig.OPENAI_IMAGE_MODEL.value
         or os.environ.get("OPENAI_IMAGE_MODEL")
         or "gpt-image-2"
     ).strip()
@@ -88,8 +88,7 @@ class OpenAICompatibleImageGenerator(ImageGenerator):
         model: Optional[str] = None,
         size: str = "1024x1024",
         quality: Optional[str] = None,
-        output_format: str = "png",
-        background: str = "opaque",
+        background: Optional[str] = None,
         **kwargs: Any,
     ) -> bytes:
         image_model, model_quality = _normalize_image_model(model or self.image_model)
@@ -98,11 +97,11 @@ class OpenAICompatibleImageGenerator(ImageGenerator):
             "prompt": prompt,
             "size": size,
             "quality": quality or model_quality or self.default_quality or "medium",
-            "output_format": output_format,
-            "background": background,
             "n": 1,
             **kwargs,
         }
+        if background:
+            payload["background"] = background
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",

@@ -59,6 +59,15 @@ class ChatImgConfig(BaseEnvConfig):
         desc="OpenAI/ChatGPT OAuth access token for Codex image generation.",
         is_sensitive=True,
     )
+    OPENAI_API_BASE = EnvField(
+        "OPENAI_API_BASE",
+        desc="OpenAI-compatible API base URL, including /v1.",
+    )
+    OPENAI_API_KEY = EnvField(
+        "OPENAI_API_KEY",
+        desc="OpenAI-compatible API key for Images API generation.",
+        is_sensitive=True,
+    )
     OPENAI_REFRESH_TOKEN = EnvField(
         "OPENAI_REFRESH_TOKEN",
         desc="OpenAI/ChatGPT OAuth refresh token for Codex image generation.",

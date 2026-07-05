@@ -37,7 +37,7 @@ def test_factory_exposes_chatimg_image_providers():
 def test_openai_compatible_generator_uses_chat_env_config_and_returns_png(monkeypatch):
     import base64
 
-    from chatenv.configs import OpenAIConfig
+    from chatimg.config import OpenAIConfig
     from chatimg.image.openai_compatible import OpenAICompatibleImageGenerator
 
     original = {
@@ -75,12 +75,19 @@ def test_openai_compatible_generator_uses_chat_env_config_and_returns_png(monkey
     assert captured["url"] == "https://crs.example.test/openai/v1/images/generations"
     assert captured["payload"]["model"] == "gpt-image-2"
     assert captured["payload"]["prompt"] == "a fox"
+    assert captured["payload"] == {
+        "model": "gpt-image-2",
+        "prompt": "a fox",
+        "size": "1024x1024",
+        "quality": "medium",
+        "n": 1,
+    }
     assert captured["headers"]["Authorization"] == "Bearer crs-key"
     assert captured["timeout"] == 123
 
 
 def test_openai_compatible_generator_does_not_fallback_to_oauth_token(monkeypatch, tmp_path):
-    from chatenv.configs import OpenAIConfig
+    from chatimg.config import OpenAIConfig
     from chatimg.image.openai_compatible import OpenAICompatibleImageGenerator
 
     original = {
@@ -106,7 +113,7 @@ def test_openai_compatible_generator_does_not_fallback_to_oauth_token(monkeypatc
 
 
 def test_openai_compatible_generator_prefers_api_key_over_oauth_token(monkeypatch):
-    from chatenv.configs import OpenAIConfig
+    from chatimg.config import OpenAIConfig
     from chatimg.image.openai_compatible import OpenAICompatibleImageGenerator
 
     original = {
@@ -142,7 +149,7 @@ def test_openai_compatible_generator_prefers_api_key_over_oauth_token(monkeypatc
 
 
 def test_openai_compatible_generator_reads_active_chatenv_openai_env(monkeypatch, tmp_path):
-    from chatenv.configs import OpenAIConfig
+    from chatimg.config import OpenAIConfig
     from chatimg.image.openai_compatible import OpenAICompatibleImageGenerator
 
     original = {
@@ -178,7 +185,7 @@ def test_openai_compatible_generator_reads_active_chatenv_openai_env(monkeypatch
 
 
 def test_openai_compatible_generator_falls_back_to_process_env(monkeypatch, tmp_path):
-    from chatenv.configs import OpenAIConfig
+    from chatimg.config import OpenAIConfig
     from chatimg.image.openai_compatible import OpenAICompatibleImageGenerator
 
     original = {
@@ -406,6 +413,8 @@ def test_chatenv_config_contains_image_provider_fields():
         "SILICONFLOW_API_KEY",
         "SILICONFLOW_MODEL_ID",
         "OPENAI_ACCESS_TOKEN",
+        "OPENAI_API_BASE",
+        "OPENAI_API_KEY",
         "OPENAI_REFRESH_TOKEN",
         "OPENAI_CODEX_AUTH_JSON",
         "OPENAI_OAUTH_BASE_URL",

@@ -21,7 +21,8 @@ ChatImg 是 ChatArch 的图片生成包，承接原 `chattool image` 中已经�
 
 当前支持：
 
-- `codex` / `openai-codex`：ChatGPT/Codex OAuth image bridge，支持 `gpt-image-2-*` preset。
+- `openai` / `crs`：OpenAI-compatible Images API，走 `OPENAI_API_KEY`，请求 `/v1/images/generations`。
+- `codex` / `openai-codex`：ChatGPT/Codex OAuth image bridge，走 `OPENAI_ACCESS_TOKEN`，支持 `gpt-image-2-*` preset。
 - `pollinations`：Pollinations.ai image URL generation and model listing。
 - `siliconflow`：SiliconFlow OpenAI-compatible image generation。
 - `huggingface`：Hugging Face Inference image generation。
@@ -47,6 +48,7 @@ pip install -e ".[images]"
 ```bash
 chatimg --help
 chatimg --version
+chatimg openai generate "a small red apple icon" -o apple.png
 chatimg codex list-models
 chatimg pollinations list-models
 ```
@@ -54,12 +56,28 @@ chatimg pollinations list-models
 生成示例：
 
 ```bash
-chatimg codex generate "a watercolor fox in the snow" --aspect-ratio square -o fox.png
+chatimg openai generate "a watercolor fox in the snow" --model gpt-image-2-medium --size 1024x1024 -o fox.png
+chatimg codex generate "a watercolor fox in the snow" --aspect-ratio square -o fox-codex.png
 chatimg pollinations generate "a cyberpunk cat" --model flux --width 512 --height 512 -o cat.png
 chatimg siliconflow generate "a cute dog" --size 1024x1024 -o dog.png
 chatimg huggingface generate "A futuristic city at night" -o city.png
 chatimg liblib generate "A cute dog" --model-id liblib-sdxl-model -o dog.png
 chatimg tongyi generate "一只赛博朋克猫" --size "1024*1024" -o cat.png
+```
+
+### OpenAI-compatible / CRS Images API
+
+`openai` provider 对齐 OpenAI 官方 Images API：`POST {OPENAI_API_BASE}/images/generations`。官方 base 是 `https://api.openai.com/v1`，因此完整官方接口是 `https://api.openai.com/v1/images/generations`。CRS 兼容服务可用自己的带 `/v1` base，例如 `https://crs.example/openai/v1`。
+
+常用配置字段：
+
+- `OPENAI_API_BASE`：OpenAI-compatible API base，必须包含 `/v1`。
+- `OPENAI_API_KEY`：API key；不会 fallback 到 access token。
+- `OPENAI_IMAGE_MODEL`：默认 image preset，例如 `gpt-image-2-medium`，会拆成 `model=gpt-image-2` 与 `quality=medium`。
+
+```bash
+chatenv use -t oai apple
+chatimg openai generate "a small red apple icon" -o apple.png
 ```
 
 ### Codex / GPT Image2 实测示例
@@ -117,7 +135,8 @@ chatimg = "chatimg.config"
 
 支持的主要环境变量：
 
-- `OPENAI_ACCESS_TOKEN`, `OPENAI_CODEX_AUTH_JSON`, `OPENAI_REFRESH_TOKEN`, `OPENAI_OAUTH_BASE_URL`, `OPENAI_ACCESS_TOKEN_EXPIRES_AT`, `OPENAI_IMAGE_MODEL`, `OPENAI_IMAGE_ASPECT_RATIO`, `OPENAI_CODEX_HOST_MODEL`, `OPENAI_CODEX_BASE_URL`, `OPENAI_CODEX_TIMEOUT`
+- `OPENAI_API_BASE`, `OPENAI_API_KEY`, `OPENAI_IMAGE_MODEL`
+- `OPENAI_ACCESS_TOKEN`, `OPENAI_CODEX_AUTH_JSON`, `OPENAI_REFRESH_TOKEN`, `OPENAI_OAUTH_BASE_URL`, `OPENAI_ACCESS_TOKEN_EXPIRES_AT`, `OPENAI_IMAGE_ASPECT_RATIO`, `OPENAI_CODEX_HOST_MODEL`, `OPENAI_CODEX_BASE_URL`, `OPENAI_CODEX_TIMEOUT`
 - `POLLINATIONS_API_KEY`, `POLLINATIONS_MODEL_ID`
 - `SILICONFLOW_API_KEY`, `SILICONFLOW_MODEL_ID`
 - `HUGGINGFACE_HUB_TOKEN`
@@ -136,4 +155,4 @@ python -m twine check dist/*
 
 ## 发布状态
 
-PyPI `chatimg==0.0.1` 是占位版本；`0.1.0` 源码已准备为首个功能版本，但 tag / PyPI 正式发布需单独确认。
+PyPI `ChatImg` 从 `0.1.x` 开始发布功能版本；`0.1.1` 是 OpenAI-compatible / CRS key-only image provider patch 版本。

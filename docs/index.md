@@ -4,6 +4,7 @@ ChatImg 是 ChatArch 的图片生成包，承接原 `chattool image` 中已经�
 
 ## 支持的 provider
 
+- `openai` / `crs`
 - `codex` / `openai-codex`
 - `pollinations`
 - `siliconflow`
@@ -16,6 +17,7 @@ ChatImg 是 ChatArch 的图片生成包，承接原 `chattool image` 中已经�
 ```bash
 chatimg --help
 chatimg --version
+chatimg openai generate "a small red apple icon" -o apple.png
 chatimg codex list-models
 chatimg pollinations list-models
 ```
@@ -23,8 +25,18 @@ chatimg pollinations list-models
 生成示例：
 
 ```bash
-chatimg codex generate "a watercolor fox in the snow" --aspect-ratio square -o fox.png
+chatimg openai generate "a watercolor fox in the snow" --model gpt-image-2-medium --size 1024x1024 -o fox.png
+chatimg codex generate "a watercolor fox in the snow" --aspect-ratio square -o fox-codex.png
 chatimg pollinations generate "a cyberpunk cat" --model flux --width 512 --height 512 -o cat.png
+```
+
+### OpenAI-compatible / CRS Images API
+
+`openai` provider 对齐 OpenAI 官方 Images API：`POST {OPENAI_API_BASE}/images/generations`。官方 base 是 `https://api.openai.com/v1`，完整接口是 `https://api.openai.com/v1/images/generations`。
+
+```bash
+chatenv use -t oai apple
+chatimg openai generate "a small red apple icon" -o apple.png
 ```
 
 ### Codex / GPT Image2 实测示例
@@ -76,7 +88,7 @@ result = generator.generate("A cute cat astronaut")
 
 ChatImg 通过 ChatEnv 注册 `chatimg` 配置类型。可用 `chatenv test -t chatimg -I` 做无网络 schema 检查。
 
-主要字段：`OPENAI_*`、`OPENAI_CODEX_*`、`POLLINATIONS_*`、`SILICONFLOW_*`、`HUGGINGFACE_HUB_TOKEN`、`LIBLIB_*`、`DASHSCOPE_API_KEY`。
+主要字段：`OPENAI_API_BASE` / `OPENAI_API_KEY` 用于 OpenAI-compatible Images API；`OPENAI_ACCESS_TOKEN` / `OPENAI_CODEX_*` 用于 Codex OAuth 路径；其他 provider 使用 `POLLINATIONS_*`、`SILICONFLOW_*`、`HUGGINGFACE_HUB_TOKEN`、`LIBLIB_*`、`DASHSCOPE_API_KEY`。
 
 ## 本地预览
 

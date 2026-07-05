@@ -16,6 +16,7 @@ ChatImg is the ChatArch image-generation package. It carries the provider implem
 ```bash
 chatimg --help
 chatimg --version
+chatimg openai generate "a small red apple icon" -o apple.png
 chatimg codex list-models
 chatimg pollinations list-models
 ```
@@ -23,8 +24,18 @@ chatimg pollinations list-models
 Generation examples:
 
 ```bash
-chatimg codex generate "a watercolor fox in the snow" --aspect-ratio square -o fox.png
+chatimg openai generate "a watercolor fox in the snow" --model gpt-image-2-medium --size 1024x1024 -o fox.png
+chatimg codex generate "a watercolor fox in the snow" --aspect-ratio square -o fox-codex.png
 chatimg pollinations generate "a cyberpunk cat" --model flux --width 512 --height 512 -o cat.png
+```
+
+### OpenAI-compatible / CRS Images API
+
+The `openai` provider follows the OpenAI Images API shape: `POST {OPENAI_API_BASE}/images/generations`. The official base is `https://api.openai.com/v1`, so the full endpoint is `https://api.openai.com/v1/images/generations`.
+
+```bash
+chatenv use -t oai apple
+chatimg openai generate "a small red apple icon" -o apple.png
 ```
 
 ### Codex / GPT Image2 verified examples
@@ -76,7 +87,7 @@ result = generator.generate("A cute cat astronaut")
 
 ChatImg registers a ChatEnv `chatimg` config type. Run `chatenv test -t chatimg -I` for a side-effect-free schema check.
 
-Main fields: `OPENAI_*`, `OPENAI_CODEX_*`, `POLLINATIONS_*`, `SILICONFLOW_*`, `HUGGINGFACE_HUB_TOKEN`, `LIBLIB_*`, `DASHSCOPE_API_KEY`.
+Main fields: `OPENAI_API_BASE` / `OPENAI_API_KEY` for the OpenAI-compatible Images API; `OPENAI_ACCESS_TOKEN` / `OPENAI_CODEX_*` for the Codex OAuth path; other providers use `POLLINATIONS_*`, `SILICONFLOW_*`, `HUGGINGFACE_HUB_TOKEN`, `LIBLIB_*`, `DASHSCOPE_API_KEY`.
 
 ## Local preview
 

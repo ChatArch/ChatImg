@@ -9,6 +9,7 @@ from typing import Any, Iterable
 
 import httpx
 
+from chatimg import __version__
 from chatimg.config import OpenAIConfig
 from chatimg.openai_oauth import refresh_openai_oauth_token
 
@@ -215,7 +216,7 @@ class CodexImageGenerator(ImageGenerator):
             "Accept": "text/event-stream",
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
-            "User-Agent": "chatimg/0.1.0 (CodexImageGenerator)",
+            "User-Agent": f"chatimg/{__version__} (CodexImageGenerator)",
             "originator": "codex_cli_rs",
         }
         claims = cls.decode_jwt_claims(access_token)

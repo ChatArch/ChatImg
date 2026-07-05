@@ -21,7 +21,8 @@ ChatImg is the ChatArch image-generation package. It carries the provider implem
 
 Supported providers:
 
-- `codex` / `openai-codex`: ChatGPT/Codex OAuth image bridge with `gpt-image-2-*` presets.
+- `openai` / `crs`: OpenAI-compatible Images API via `OPENAI_API_KEY` and `/v1/images/generations`.
+- `codex` / `openai-codex`: ChatGPT/Codex OAuth image bridge via `OPENAI_ACCESS_TOKEN`, with `gpt-image-2-*` presets.
 - `pollinations`: Pollinations.ai image URL generation and model listing.
 - `siliconflow`: SiliconFlow OpenAI-compatible image generation.
 - `huggingface`: Hugging Face Inference image generation.
@@ -47,6 +48,7 @@ pip install -e ".[images]"
 ```bash
 chatimg --help
 chatimg --version
+chatimg openai generate "a small red apple icon" -o apple.png
 chatimg codex list-models
 chatimg pollinations list-models
 ```
@@ -54,12 +56,28 @@ chatimg pollinations list-models
 Generation examples:
 
 ```bash
-chatimg codex generate "a watercolor fox in the snow" --aspect-ratio square -o fox.png
+chatimg openai generate "a watercolor fox in the snow" --model gpt-image-2-medium --size 1024x1024 -o fox.png
+chatimg codex generate "a watercolor fox in the snow" --aspect-ratio square -o fox-codex.png
 chatimg pollinations generate "a cyberpunk cat" --model flux --width 512 --height 512 -o cat.png
 chatimg siliconflow generate "a cute dog" --size 1024x1024 -o dog.png
 chatimg huggingface generate "A futuristic city at night" -o city.png
 chatimg liblib generate "A cute dog" --model-id liblib-sdxl-model -o dog.png
 chatimg tongyi generate "a cyberpunk cat" --size "1024*1024" -o cat.png
+```
+
+### OpenAI-compatible / CRS Images API
+
+The `openai` provider follows the OpenAI Images API shape: `POST {OPENAI_API_BASE}/images/generations`. The official base is `https://api.openai.com/v1`, so the full official endpoint is `https://api.openai.com/v1/images/generations`. CRS-compatible services can provide their own `/v1` base, such as `https://crs.example/openai/v1`.
+
+Main fields:
+
+- `OPENAI_API_BASE`: OpenAI-compatible API base, including `/v1`.
+- `OPENAI_API_KEY`: API key; it never falls back to an access token.
+- `OPENAI_IMAGE_MODEL`: image preset such as `gpt-image-2-medium`, normalized to `model=gpt-image-2` and `quality=medium`.
+
+```bash
+chatenv use -t oai apple
+chatimg openai generate "a small red apple icon" -o apple.png
 ```
 
 ### Codex / GPT Image2 verified examples
@@ -117,7 +135,8 @@ chatimg = "chatimg.config"
 
 Main supported environment variables:
 
-- `OPENAI_ACCESS_TOKEN`, `OPENAI_CODEX_AUTH_JSON`, `OPENAI_REFRESH_TOKEN`, `OPENAI_OAUTH_BASE_URL`, `OPENAI_ACCESS_TOKEN_EXPIRES_AT`, `OPENAI_IMAGE_MODEL`, `OPENAI_IMAGE_ASPECT_RATIO`, `OPENAI_CODEX_HOST_MODEL`, `OPENAI_CODEX_BASE_URL`, `OPENAI_CODEX_TIMEOUT`
+- `OPENAI_API_BASE`, `OPENAI_API_KEY`, `OPENAI_IMAGE_MODEL`
+- `OPENAI_ACCESS_TOKEN`, `OPENAI_CODEX_AUTH_JSON`, `OPENAI_REFRESH_TOKEN`, `OPENAI_OAUTH_BASE_URL`, `OPENAI_ACCESS_TOKEN_EXPIRES_AT`, `OPENAI_IMAGE_ASPECT_RATIO`, `OPENAI_CODEX_HOST_MODEL`, `OPENAI_CODEX_BASE_URL`, `OPENAI_CODEX_TIMEOUT`
 - `POLLINATIONS_API_KEY`, `POLLINATIONS_MODEL_ID`
 - `SILICONFLOW_API_KEY`, `SILICONFLOW_MODEL_ID`
 - `HUGGINGFACE_HUB_TOKEN`
@@ -136,4 +155,4 @@ python -m twine check dist/*
 
 ## Release state
 
-PyPI `chatimg==0.0.1` is a placeholder. Source version `0.1.0` is prepared as the first feature version, but tag / PyPI publishing requires separate approval.
+PyPI `ChatImg` publishes functional releases on the `0.1.x` line; `0.1.1` is the OpenAI-compatible / CRS key-only image provider patch release.
