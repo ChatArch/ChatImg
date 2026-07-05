@@ -1,5 +1,6 @@
 import base64
 import os
+from pathlib import Path
 from typing import Any, Optional
 
 import requests
@@ -8,8 +9,40 @@ from chatenv.configs import OpenAIConfig
 from .base import ImageGenerator
 
 
+def _strip_env_quotes(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        return value[1:-1]
+    return value
+
+
+def _load_active_openai_env() -> dict[str, str]:
+    chatarch_home = Path(os.environ.get("CHATARCH_HOME") or Path.home() / ".chatarch")
+    active_path = chatarch_home / "envs" / "OpenAI" / ".env"
+    if not active_path.exists():
+        return {}
+
+    values: dict[str, str] = {}
+    for raw_line in active_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if key in {"OPENAI_API_KEY", "OPENAI_API_BASE", "OPENAI_IMAGE_MODEL"}:
+            values[key] = _strip_env_quotes(value)
+    return values
+
+
 def _normalize_image_model(model: str | None) -> tuple[str, str | None]:
-    value = (model or OpenAIConfig.OPENAI_IMAGE_MODEL.value or "gpt-image-2").strip()
+    active_env = _load_active_openai_env()
+    value = (
+        model
+        or OpenAIConfig.OPENAI_IMAGE_MODEL.value
+        or active_env.get("OPENAI_IMAGE_MODEL")
+        or os.environ.get("OPENAI_IMAGE_MODEL")
+        or "gpt-image-2"
+    ).strip()
     for suffix in ("-low", "-medium", "-high"):
         if value.endswith(suffix):
             return value[: -len(suffix)], suffix.removeprefix("-")
@@ -26,13 +59,20 @@ class OpenAICompatibleImageGenerator(ImageGenerator):
         image_model: Optional[str] = None,
         timeout_seconds: Optional[float] = None,
     ):
-        self.api_key = api_key or OpenAIConfig.OPENAI_API_KEY.value or os.environ.get("OPENAI_API_KEY")
+        active_env = _load_active_openai_env()
+        self.api_key = (
+            api_key
+            or OpenAIConfig.OPENAI_API_KEY.value
+            or active_env.get("OPENAI_API_KEY")
+            or os.environ.get("OPENAI_API_KEY")
+        )
         if not self.api_key:
             raise ValueError("OPENAI_API_KEY not set")
 
         self.api_base = (
             api_base
             or OpenAIConfig.OPENAI_API_BASE.value
+            or active_env.get("OPENAI_API_BASE")
             or os.environ.get("OPENAI_API_BASE")
             or ""
         ).rstrip("/")
