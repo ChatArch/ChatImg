@@ -247,6 +247,56 @@ def siliconflow():
     pass
 
 
+
+@main.group()
+def openai():
+    """OpenAI-compatible Images API tools, including CRS proxy."""
+    pass
+
+
+@openai.command(name="generate")
+@click.argument("prompt", required=False)
+@click.option("--model", "image_model", help="Image model or preset, e.g. gpt-image-2-medium.")
+@click.option("--size", default="1024x1024", show_default=True, help="Image size.")
+@click.option("--quality", type=click.Choice(["low", "medium", "high", "auto"]), help="Image quality.")
+@click.option("--api-base", help="Override OPENAI_API_BASE, usually ending with /v1.")
+@click.option("--timeout", type=float, help="Request timeout in seconds.")
+@click.option(
+    "--output",
+    "-o",
+    help="Optional output file path. Defaults to ./generated/image_openai_<model>_<timestamp>.png",
+)
+@add_interactive_option
+def openai_generate(prompt, image_model, size, quality, api_base, timeout, output, interactive):
+    """Generate an image using OpenAI-compatible Images API."""
+    inputs = resolve_command_inputs(
+        schema=PROMPT_SCHEMA,
+        provided={"prompt": prompt},
+        interactive=interactive,
+        usage="Usage: chatimg openai generate [PROMPT] [-i|-I]",
+    )
+    prompt = inputs["prompt"]
+
+    try:
+        generator = create_generator(
+            "openai",
+            api_base=api_base,
+            image_model=image_model,
+            timeout_seconds=timeout,
+        )
+        click.echo(f"Generating image with OpenAI-compatible API (image: {generator.image_model})...")
+        result = generator.generate(prompt, size=size, quality=quality)
+        output_path = resolve_generated_output_path(
+            output,
+            provider="openai",
+            model=generator.image_model,
+            prompt=prompt,
+        )
+        saved = save_binary(result, output_path)
+        click.echo(f"Image saved to {saved}")
+    except Exception as e:
+        raise click.ClickException(str(e)) from e
+
 @main.group()
 def codex():
     """ChatGPT/Codex OAuth image tools."""

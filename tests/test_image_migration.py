@@ -16,10 +16,14 @@ def test_factory_exposes_chatimg_image_providers():
         "siliconflow",
         "codex",
         "openai-codex",
+        "openai",
+        "crs",
     }
     for provider in providers:
         if provider in {"codex", "openai-codex"}:
             generator = create_generator(provider, access_token="not-a-jwt")
+        elif provider in {"openai", "crs"}:
+            generator = create_generator(provider, api_key="token", api_base="https://example.test/openai/v1")
         elif provider == "pollinations":
             generator = create_generator(provider, api_key="token")
         elif provider == "liblib":
@@ -27,6 +31,99 @@ def test_factory_exposes_chatimg_image_providers():
         else:
             generator = create_generator(provider, api_key="token")
         assert isinstance(generator, ImageGenerator)
+
+
+def test_openai_compatible_generator_uses_chat_env_config_and_returns_png(monkeypatch):
+    import base64
+
+    from chatenv.configs import OpenAIConfig
+    from chatimg.image.openai_compatible import OpenAICompatibleImageGenerator
+
+    original = {
+        "OPENAI_API_BASE": OpenAIConfig.OPENAI_API_BASE.value,
+        "OPENAI_API_KEY": OpenAIConfig.OPENAI_API_KEY.value,
+        "OPENAI_IMAGE_MODEL": OpenAIConfig.OPENAI_IMAGE_MODEL.value,
+    }
+    captured = {}
+
+    class Response:
+        status_code = 200
+
+        def json(self):
+            return {"data": [{"b64_json": base64.b64encode(b"fake-png").decode("utf-8")}]}
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        captured["url"] = url
+        captured["payload"] = json
+        captured["headers"] = headers
+        captured["timeout"] = timeout
+        return Response()
+
+    monkeypatch.setattr("requests.post", fake_post)
+    try:
+        OpenAIConfig.OPENAI_API_BASE.value = "https://crs.example.test/openai/v1"
+        OpenAIConfig.OPENAI_API_KEY.value = "crs-key"
+        OpenAIConfig.OPENAI_IMAGE_MODEL.value = "gpt-image-2-medium"
+        generator = OpenAICompatibleImageGenerator(timeout_seconds=123)
+        result = generator.generate("a fox", size="1024x1024")
+    finally:
+        for key, value in original.items():
+            getattr(OpenAIConfig, key).value = value
+
+    assert result == b"fake-png"
+    assert captured["url"] == "https://crs.example.test/openai/v1/images/generations"
+    assert captured["payload"]["model"] == "gpt-image-2"
+    assert captured["payload"]["prompt"] == "a fox"
+    assert captured["headers"]["Authorization"] == "Bearer crs-key"
+    assert captured["timeout"] == 123
+
+
+
+
+
+def test_openai_compatible_generator_falls_back_to_process_env(monkeypatch):
+    from chatenv.configs import OpenAIConfig
+    from chatimg.image.openai_compatible import OpenAICompatibleImageGenerator
+
+    original = {
+        "OPENAI_API_BASE": OpenAIConfig.OPENAI_API_BASE.value,
+        "OPENAI_API_KEY": OpenAIConfig.OPENAI_API_KEY.value,
+    }
+    try:
+        OpenAIConfig.OPENAI_API_BASE.value = ""
+        OpenAIConfig.OPENAI_API_KEY.value = ""
+        monkeypatch.setenv("OPENAI_API_BASE", "https://crs.example.test/openai/v1")
+        monkeypatch.setenv("OPENAI_API_KEY", "env-crs-key")
+        generator = OpenAICompatibleImageGenerator()
+    finally:
+        for key, value in original.items():
+            getattr(OpenAIConfig, key).value = value
+
+    assert generator.api_base == "https://crs.example.test/openai/v1"
+    assert generator.api_key == "env-crs-key"
+
+def test_openai_compatible_cli_generate_saves_png(monkeypatch, tmp_path):
+    from click.testing import CliRunner
+    from chatimg.cli import main
+
+    class FakeGenerator:
+        image_model = "gpt-image-2"
+
+        def generate(self, prompt, **kwargs):
+            assert prompt == "a fox"
+            assert kwargs["size"] == "1024x1024"
+            return b"fake-png"
+
+    monkeypatch.setattr("chatimg.image.cli.create_generator", lambda provider, **kwargs: FakeGenerator())
+    output = tmp_path / "fox.png"
+    result = CliRunner().invoke(
+        main,
+        ["openai", "generate", "a fox", "--size", "1024x1024", "-o", str(output)],
+    )
+
+    assert result.exit_code == 0
+    assert output.read_bytes() == b"fake-png"
+    assert "Image saved to" in result.output
 
 
 def test_codex_model_presets_and_payload_shape():
