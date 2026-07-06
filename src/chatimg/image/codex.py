@@ -4,13 +4,13 @@ import base64
 import json
 import time
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any, Iterable
 
 import httpx
 
-from chatimg.config import OpenAIConfig
-from chatimg.openai_oauth import refresh_openai_oauth_token
+from chatimg import __version__
+from chatimg.config import CodexConfig
+from chatimg.codex_oauth import refresh_codex_oauth_token
 
 from .base import ImageGenerator
 
@@ -63,29 +63,21 @@ class CodexImageGenerator(ImageGenerator):
         self.access_token = (access_token or "").strip() or None
         self.base_url = (
             base_url
-            or OpenAIConfig.OPENAI_CODEX_BASE_URL.value
+            or CodexConfig.CODEX_API_BASE.value
             or DEFAULT_BASE_URL
         )
         self.host_model = (
             host_model
-            or OpenAIConfig.OPENAI_CODEX_HOST_MODEL.value
+            or CodexConfig.CODEX_HOST_MODEL.value
             or DEFAULT_HOST_MODEL
         )
         self.image_model = (
             image_model
-            or OpenAIConfig.OPENAI_IMAGE_MODEL.value
+            or CodexConfig.CODEX_IMAGE_MODEL.value
             or DEFAULT_IMAGE_MODEL
         )
-        self.aspect_ratio = (
-            aspect_ratio
-            or OpenAIConfig.OPENAI_IMAGE_ASPECT_RATIO.value
-            or DEFAULT_ASPECT_RATIO
-        )
-        self.timeout_seconds = float(
-            timeout_seconds
-            or OpenAIConfig.OPENAI_CODEX_TIMEOUT.value
-            or DEFAULT_TIMEOUT_SECONDS
-        )
+        self.aspect_ratio = aspect_ratio or DEFAULT_ASPECT_RATIO
+        self.timeout_seconds = float(timeout_seconds or DEFAULT_TIMEOUT_SECONDS)
         self._validate_options(self.image_model, self.aspect_ratio)
 
     @staticmethod
@@ -126,92 +118,53 @@ class CodexImageGenerator(ImageGenerator):
         return datetime.now(timezone.utc) > expires_at.astimezone(timezone.utc)
 
     @staticmethod
-    def _apply_refreshed_openai_token(refreshed: dict[str, Any]) -> str:
+    def _apply_refreshed_codex_token(refreshed: dict[str, Any]) -> str:
         access_token = str(refreshed.get("access_token") or "").strip()
         if not access_token:
-            raise ValueError("OpenAI OAuth refresh response was missing access_token")
-        OpenAIConfig.OPENAI_ACCESS_TOKEN.value = access_token
+            raise ValueError("Codex OAuth refresh response was missing access_token")
+        CodexConfig.CODEX_ACCESS_TOKEN.value = access_token
         refresh_token = str(refreshed.get("refresh_token") or "").strip()
         if refresh_token:
-            OpenAIConfig.OPENAI_REFRESH_TOKEN.value = refresh_token
+            CodexConfig.CODEX_REFRESH_TOKEN.value = refresh_token
         expires_at = str(refreshed.get("access_token_expires_at") or "").strip()
         if expires_at:
-            OpenAIConfig.OPENAI_ACCESS_TOKEN_EXPIRES_AT.value = expires_at
+            CodexConfig.CODEX_ACCESS_TOKEN_EXPIRES_AT.value = expires_at
         return access_token
 
     def _refresh_configured_access_token(self) -> str | None:
-        refresh_token = (OpenAIConfig.OPENAI_REFRESH_TOKEN.value or "").strip()
+        refresh_token = (CodexConfig.CODEX_REFRESH_TOKEN.value or "").strip()
         if not refresh_token:
             return None
-        refreshed = refresh_openai_oauth_token(refresh_token)
-        return self._apply_refreshed_openai_token(refreshed)
-
-    @staticmethod
-    def _auth_json_candidates() -> Iterable[Path]:
-        configured = (OpenAIConfig.OPENAI_CODEX_AUTH_JSON.value or "").strip()
-        if configured:
-            yield Path(configured).expanduser()
-        yield Path.home() / ".hermes" / "auth.json"
-
-    @classmethod
-    def read_token_from_auth_json(cls) -> str | None:
-        for path in cls._auth_json_candidates():
-            if not path.exists():
-                continue
-            try:
-                data = json.loads(path.read_text(encoding="utf-8"))
-            except Exception:
-                continue
-            pool = data.get("credential_pool", {}).get("openai-codex")
-            if isinstance(pool, list):
-                for entry in pool:
-                    token = str((entry or {}).get("access_token") or "").strip()
-                    if token and not cls.is_token_expired(token):
-                        return token
-            providers = data.get("providers", {})
-            codex = providers.get("openai-codex") if isinstance(providers, dict) else None
-            if isinstance(codex, dict):
-                token = str(((codex.get("tokens") or {}).get("access_token")) or "").strip()
-                if token and not cls.is_token_expired(token):
-                    return token
-        return None
+        refreshed = refresh_codex_oauth_token(refresh_token)
+        return self._apply_refreshed_codex_token(refreshed)
 
     def resolve_access_token(self) -> str:
         token = self.access_token
         if token:
             if self.is_token_expired(token):
-                raise ValueError("OPENAI_ACCESS_TOKEN is expired")
+                raise ValueError("CODEX_ACCESS_TOKEN is expired")
             return token
 
-        configured_token = (
-            OpenAIConfig.OPENAI_ACCESS_TOKEN.value
-            or OpenAIConfig.OPENAI_CODEX_ACCESS_TOKEN.value
-            or ""
-        ).strip()
+        configured_token = (CodexConfig.CODEX_ACCESS_TOKEN.value or "").strip()
         if configured_token:
             configured_expires_at = (
-                OpenAIConfig.OPENAI_ACCESS_TOKEN_EXPIRES_AT.value or ""
+                CodexConfig.CODEX_ACCESS_TOKEN_EXPIRES_AT.value or ""
             ).strip()
             if configured_expires_at and self.is_datetime_expired(configured_expires_at):
                 refreshed_token = self._refresh_configured_access_token()
                 if refreshed_token:
                     return refreshed_token
-                raise ValueError("OPENAI_ACCESS_TOKEN_EXPIRES_AT is expired")
+                raise ValueError("CODEX_ACCESS_TOKEN_EXPIRES_AT is expired")
             if self.is_token_expired(configured_token):
                 refreshed_token = self._refresh_configured_access_token()
                 if refreshed_token:
                     return refreshed_token
-                raise ValueError("OPENAI_ACCESS_TOKEN is expired")
+                raise ValueError("CODEX_ACCESS_TOKEN is expired")
             return configured_token
 
-        auth_json_token = self.read_token_from_auth_json()
-        if auth_json_token:
-            return auth_json_token
-
         raise ValueError(
-            "No usable OpenAI OAuth access token found. Set OPENAI_ACCESS_TOKEN "
-            "or OPENAI_CODEX_ACCESS_TOKEN in the ChatImg/OpenAI chatenv profile, "
-            "or point OPENAI_CODEX_AUTH_JSON to a Hermes auth.json with a valid openai-codex login."
+            "No usable Codex OAuth access token found. Set CODEX_ACCESS_TOKEN "
+            "or CODEX_REFRESH_TOKEN in the Codex ChatEnv profile."
         )
 
     @classmethod
@@ -220,7 +173,7 @@ class CodexImageGenerator(ImageGenerator):
             "Accept": "text/event-stream",
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
-            "User-Agent": "chatimg/0.1.0 (CodexImageGenerator)",
+            "User-Agent": f"chatimg/{__version__} (CodexImageGenerator)",
             "originator": "codex_cli_rs",
         }
         claims = cls.decode_jwt_claims(access_token)
