@@ -157,4 +157,4 @@ python -m twine check dist/*
 
 ## Release state
 
-PyPI `ChatImg` publishes functional releases on the `0.1.x` line; `0.1.2` is the Codex configuration-boundary cleanup patch release.
+PyPI `ChatImg` publishes functional releases on the `0.1.x` line; `0.1.3` is the Codex config alias fix patch release.

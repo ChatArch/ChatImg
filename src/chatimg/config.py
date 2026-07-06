@@ -68,7 +68,7 @@ class CodexConfig(BaseEnvConfig):
     """Codex OAuth image bridge configuration owned by ChatImg."""
 
     _title = "Codex Configuration"
-    _aliases = ["codex", "openai-codex"]
+    _aliases = ["codex"]
     _storage_dir = "Codex"
 
     CODEX_ACCESS_TOKEN = EnvField(

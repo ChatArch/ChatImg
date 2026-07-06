@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3 - 2026-07-07
+
+### Fixed
+
+- Remove `openai-codex` from `CodexConfig` ChatEnv aliases so `chatenv -t openai` resolves only to shared `OpenAIConfig` and does not become ambiguous with Codex.
+- Keep `openai-codex` as a generator provider alias only; it is not a typed-env config alias.
+
 ## 0.1.2 - 2026-07-07
 
 ### Changed
