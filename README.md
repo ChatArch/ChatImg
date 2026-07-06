@@ -157,4 +157,4 @@ python -m twine check dist/*
 
 ## 发布状态
 
-PyPI `ChatImg` 从 `0.1.x` 开始发布功能版本；`0.1.2` 是 Codex 配置边界清理 patch 版本。
+PyPI `ChatImg` 从 `0.1.x` 开始发布功能版本；`0.1.3` 是 Codex 配置 alias 修正 patch 版本。

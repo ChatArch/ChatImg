@@ -465,3 +465,4 @@ def test_chatenv_config_contains_image_provider_fields():
     assert codex_expected <= codex_actual
     assert "CODEX_AUTH_JSON" not in codex_actual
     assert "CODEX_TIMEOUT" not in codex_actual
+    assert CodexConfig._aliases == ["codex"]
