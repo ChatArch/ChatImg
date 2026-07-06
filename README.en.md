@@ -22,7 +22,7 @@ ChatImg is the ChatArch image-generation package. It carries the provider implem
 Supported providers:
 
 - `openai` / `crs`: OpenAI-compatible Images API via `OPENAI_API_KEY` and `/v1/images/generations`.
-- `codex` / `openai-codex`: ChatGPT/Codex OAuth image bridge via `OPENAI_ACCESS_TOKEN`, with `gpt-image-2-*` presets.
+- `codex` / `openai-codex`: ChatGPT/Codex OAuth image bridge via `CODEX_ACCESS_TOKEN`, with `gpt-image-2-*` presets.
 - `pollinations`: Pollinations.ai image URL generation and model listing.
 - `siliconflow`: SiliconFlow OpenAI-compatible image generation.
 - `huggingface`: Hugging Face Inference image generation.
@@ -86,13 +86,15 @@ The `codex` provider uses the ChatGPT/Codex OAuth-backed Responses API. The requ
 
 Common configuration fields:
 
-- `OPENAI_ACCESS_TOKEN`: OpenAI/ChatGPT OAuth access token for the Codex image path.
-- `OPENAI_CODEX_AUTH_JSON`: Hermes auth.json path; defaults to `~/.hermes/auth.json` for reusing the local `openai-codex` login.
-- `OPENAI_CODEX_HOST_MODEL`: host model that invokes the `image_generation` tool; defaults to `gpt-5.4`.
-- `OPENAI_CODEX_BASE_URL`: Codex backend base URL; defaults to `https://chatgpt.com/backend-api/codex`.
-- `OPENAI_CODEX_TIMEOUT`: request timeout in seconds; defaults to `300`.
-- `OPENAI_IMAGE_MODEL`: default image preset; defaults to `gpt-image-2-medium`.
-- `OPENAI_IMAGE_ASPECT_RATIO`: default aspect ratio; defaults to `square`.
+- `CODEX_ACCESS_TOKEN`: Codex OAuth access token.
+- `CODEX_REFRESH_TOKEN`: Codex OAuth refresh token used to refresh the access token.
+- `CODEX_ACCESS_TOKEN_EXPIRES_AT`: UTC ISO timestamp for the access token expiry.
+- `CODEX_OAUTH_BASE_URL`: Codex OAuth auth server base URL, defaulting to `https://auth.openai.com`.
+- `CODEX_API_BASE`: Codex backend base URL, defaulting to `https://chatgpt.com/backend-api/codex`.
+- `CODEX_HOST_MODEL`: host model that invokes the `image_generation` tool, defaulting to `gpt-5.4`.
+- `CODEX_IMAGE_MODEL`: default image preset, defaulting to `gpt-image-2-medium`.
+
+The `codex` provider no longer reads `~/.hermes/auth.json` and no longer maintains `OPENAI_CODEX_*` variables. `--timeout` and `--aspect-ratio` are command-level options, not long-lived env settings.
 
 Basic acceptance image:
 
@@ -136,7 +138,7 @@ chatimg = "chatimg.config"
 Main supported environment variables:
 
 - `OPENAI_API_BASE`, `OPENAI_API_KEY`, `OPENAI_IMAGE_MODEL`
-- `OPENAI_ACCESS_TOKEN`, `OPENAI_CODEX_AUTH_JSON`, `OPENAI_REFRESH_TOKEN`, `OPENAI_OAUTH_BASE_URL`, `OPENAI_ACCESS_TOKEN_EXPIRES_AT`, `OPENAI_IMAGE_ASPECT_RATIO`, `OPENAI_CODEX_HOST_MODEL`, `OPENAI_CODEX_BASE_URL`, `OPENAI_CODEX_TIMEOUT`
+- `CODEX_ACCESS_TOKEN`, `CODEX_REFRESH_TOKEN`, `CODEX_ACCESS_TOKEN_EXPIRES_AT`, `CODEX_OAUTH_BASE_URL`, `CODEX_API_BASE`, `CODEX_HOST_MODEL`, `CODEX_IMAGE_MODEL`
 - `POLLINATIONS_API_KEY`, `POLLINATIONS_MODEL_ID`
 - `SILICONFLOW_API_KEY`, `SILICONFLOW_MODEL_ID`
 - `HUGGINGFACE_HUB_TOKEN`
@@ -155,4 +157,4 @@ python -m twine check dist/*
 
 ## Release state
 
-PyPI `ChatImg` publishes functional releases on the `0.1.x` line; `0.1.1` is the OpenAI-compatible / CRS key-only image provider patch release.
+PyPI `ChatImg` publishes functional releases on the `0.1.x` line; `0.1.2` is the Codex configuration-boundary cleanup patch release.

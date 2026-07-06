@@ -45,13 +45,15 @@ chatimg openai generate "a small red apple icon" -o apple.png
 
 常用配置字段：
 
-- `OPENAI_ACCESS_TOKEN`：OpenAI/ChatGPT OAuth access token，用于 Codex image 旧路径。
-- `OPENAI_CODEX_AUTH_JSON`：Hermes auth.json 路径；默认 `~/.hermes/auth.json`，用于复用本机 `openai-codex` 登录态。
-- `OPENAI_CODEX_HOST_MODEL`：承载 `image_generation` tool 的 host model，默认 `gpt-5.4`。
-- `OPENAI_CODEX_BASE_URL`：Codex backend base URL，默认 `https://chatgpt.com/backend-api/codex`。
-- `OPENAI_CODEX_TIMEOUT`：请求超时秒数，默认 `300`。
-- `OPENAI_IMAGE_MODEL`：默认 image preset，默认 `gpt-image-2-medium`。
-- `OPENAI_IMAGE_ASPECT_RATIO`：默认图片比例，默认 `square`。
+- `CODEX_ACCESS_TOKEN`：Codex OAuth access token。
+- `CODEX_REFRESH_TOKEN`：Codex OAuth refresh token，用于刷新 access token。
+- `CODEX_ACCESS_TOKEN_EXPIRES_AT`：access token 的 UTC ISO 过期时间。
+- `CODEX_OAUTH_BASE_URL`：Codex OAuth auth server base URL，默认 `https://auth.openai.com`。
+- `CODEX_API_BASE`：Codex backend base URL，默认 `https://chatgpt.com/backend-api/codex`。
+- `CODEX_HOST_MODEL`：承载 `image_generation` tool 的 host model，默认 `gpt-5.4`。
+- `CODEX_IMAGE_MODEL`：默认 image preset，默认 `gpt-image-2-medium`。
+
+`codex` provider 不再读取 `~/.hermes/auth.json`，也不再维护 `OPENAI_CODEX_*` 变量。`--timeout` 和 `--aspect-ratio` 是命令级参数，不写入长期 env。
 
 基础验收图：
 
@@ -88,7 +90,7 @@ result = generator.generate("A cute cat astronaut")
 
 ChatImg 通过 ChatEnv 注册 `chatimg` 配置类型。可用 `chatenv test -t chatimg -I` 做无网络 schema 检查。
 
-主要字段：`OPENAI_API_BASE` / `OPENAI_API_KEY` 用于 OpenAI-compatible Images API；`OPENAI_ACCESS_TOKEN` / `OPENAI_CODEX_*` 用于 Codex OAuth 路径；其他 provider 使用 `POLLINATIONS_*`、`SILICONFLOW_*`、`HUGGINGFACE_HUB_TOKEN`、`LIBLIB_*`、`DASHSCOPE_API_KEY`。
+主要字段：`OPENAI_API_BASE` / `OPENAI_API_KEY` 用于 OpenAI-compatible Images API；`CODEX_*` 用于 Codex OAuth image bridge；其他 provider 使用 `POLLINATIONS_*`、`SILICONFLOW_*`、`HUGGINGFACE_HUB_TOKEN`、`LIBLIB_*`、`DASHSCOPE_API_KEY`。
 
 ## 本地预览
 

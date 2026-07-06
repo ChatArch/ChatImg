@@ -44,13 +44,15 @@ The `codex` provider uses the ChatGPT/Codex OAuth-backed Responses API. The requ
 
 Common configuration fields:
 
-- `OPENAI_ACCESS_TOKEN`: OpenAI/ChatGPT OAuth access token for the Codex image path.
-- `OPENAI_CODEX_AUTH_JSON`: Hermes auth.json path; defaults to `~/.hermes/auth.json` for reusing the local `openai-codex` login.
-- `OPENAI_CODEX_HOST_MODEL`: host model that invokes the `image_generation` tool; defaults to `gpt-5.4`.
-- `OPENAI_CODEX_BASE_URL`: Codex backend base URL; defaults to `https://chatgpt.com/backend-api/codex`.
-- `OPENAI_CODEX_TIMEOUT`: request timeout in seconds; defaults to `300`.
-- `OPENAI_IMAGE_MODEL`: default image preset; defaults to `gpt-image-2-medium`.
-- `OPENAI_IMAGE_ASPECT_RATIO`: default aspect ratio; defaults to `square`.
+- `CODEX_ACCESS_TOKEN`: Codex OAuth access token.
+- `CODEX_REFRESH_TOKEN`: Codex OAuth refresh token used to refresh the access token.
+- `CODEX_ACCESS_TOKEN_EXPIRES_AT`: UTC ISO timestamp for the access token expiry.
+- `CODEX_OAUTH_BASE_URL`: Codex OAuth auth server base URL, defaulting to `https://auth.openai.com`.
+- `CODEX_API_BASE`: Codex backend base URL, defaulting to `https://chatgpt.com/backend-api/codex`.
+- `CODEX_HOST_MODEL`: host model that invokes the `image_generation` tool, defaulting to `gpt-5.4`.
+- `CODEX_IMAGE_MODEL`: default image preset, defaulting to `gpt-image-2-medium`.
+
+The `codex` provider no longer reads `~/.hermes/auth.json` and no longer maintains `OPENAI_CODEX_*` variables. `--timeout` and `--aspect-ratio` are command-level options, not long-lived env settings.
 
 Basic acceptance image:
 
@@ -87,7 +89,7 @@ result = generator.generate("A cute cat astronaut")
 
 ChatImg registers a ChatEnv `chatimg` config type. Run `chatenv test -t chatimg -I` for a side-effect-free schema check.
 
-Main fields: `OPENAI_API_BASE` / `OPENAI_API_KEY` for the OpenAI-compatible Images API; `OPENAI_ACCESS_TOKEN` / `OPENAI_CODEX_*` for the Codex OAuth path; other providers use `POLLINATIONS_*`, `SILICONFLOW_*`, `HUGGINGFACE_HUB_TOKEN`, `LIBLIB_*`, `DASHSCOPE_API_KEY`.
+Main fields: `OPENAI_API_BASE` / `OPENAI_API_KEY` for the OpenAI-compatible Images API; `CODEX_*` for the Codex OAuth image bridge; other providers use `POLLINATIONS_*`, `SILICONFLOW_*`, `HUGGINGFACE_HUB_TOKEN`, `LIBLIB_*`, `DASHSCOPE_API_KEY`.
 
 ## Local preview
 

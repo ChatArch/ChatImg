@@ -6,11 +6,11 @@ from typing import Any
 
 import httpx
 
-from chatimg.config import ChatImgConfig as OpenAIConfig
+from chatimg.config import CodexConfig
 
-OPENAI_OAUTH_BASE_URL = "https://auth.openai.com"
-OPENAI_CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
-OPENAI_OAUTH_SCOPE = "openid profile email"
+CODEX_OAUTH_BASE_URL = "https://auth.openai.com"
+CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
+CODEX_OAUTH_SCOPE = "openid profile email"
 
 
 def _iso_z(value: datetime) -> str:
@@ -25,19 +25,18 @@ def _present(value: str | None) -> str:
     return "present" if (value or "").strip() else "missing"
 
 
-def build_openai_oauth_status(*, env_file: str | Path | None = None) -> dict[str, str]:
-    """Return safe OpenAI OAuth token metadata without secret values."""
+def build_codex_oauth_status(*, env_file: str | Path | None = None) -> dict[str, str]:
+    """Return safe Codex OAuth token metadata without secret values."""
     return {
-        "access_token": _present(OpenAIConfig.OPENAI_ACCESS_TOKEN.value),
-        "refresh_token": _present(OpenAIConfig.OPENAI_REFRESH_TOKEN.value),
-        "codex_auth_json": str(OpenAIConfig.OPENAI_CODEX_AUTH_JSON.value or ""),
-        "oauth_base_url": str(OpenAIConfig.OPENAI_OAUTH_BASE_URL.value or ""),
-        "access_token_expires_at": str(OpenAIConfig.OPENAI_ACCESS_TOKEN_EXPIRES_AT.value or ""),
+        "access_token": _present(CodexConfig.CODEX_ACCESS_TOKEN.value),
+        "refresh_token": _present(CodexConfig.CODEX_REFRESH_TOKEN.value),
+        "oauth_base_url": str(CodexConfig.CODEX_OAUTH_BASE_URL.value or ""),
+        "access_token_expires_at": str(CodexConfig.CODEX_ACCESS_TOKEN_EXPIRES_AT.value or ""),
         "env_file": str(env_file) if env_file is not None else "",
     }
 
 
-def build_openai_oauth_refresh_result(
+def build_codex_oauth_refresh_result(
     *,
     token_data: dict[str, Any],
     oauth_base_url: str,
@@ -55,39 +54,39 @@ def build_openai_oauth_refresh_result(
     }
 
 
-def save_openai_oauth_token_data(
+def save_codex_oauth_token_data(
     *,
     token_data: dict[str, Any],
     oauth_base_url: str,
     target_path: str | Path,
 ) -> Path:
-    """Save normalized OpenAI OAuth token metadata to an OpenAI typed env file."""
+    """Save normalized Codex OAuth token metadata to a Codex typed env file."""
     path = Path(target_path)
-    OpenAIConfig.OPENAI_ACCESS_TOKEN.value = str(token_data.get("access_token") or "")
-    OpenAIConfig.OPENAI_REFRESH_TOKEN.value = str(token_data.get("refresh_token") or "")
-    OpenAIConfig.OPENAI_ACCESS_TOKEN_EXPIRES_AT.value = str(
+    CodexConfig.CODEX_ACCESS_TOKEN.value = str(token_data.get("access_token") or "")
+    CodexConfig.CODEX_REFRESH_TOKEN.value = str(token_data.get("refresh_token") or "")
+    CodexConfig.CODEX_ACCESS_TOKEN_EXPIRES_AT.value = str(
         token_data.get("access_token_expires_at") or ""
     )
-    OpenAIConfig.OPENAI_OAUTH_BASE_URL.value = oauth_base_url
+    CodexConfig.CODEX_OAUTH_BASE_URL.value = oauth_base_url
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(OpenAIConfig.render_env_file(), encoding="utf-8")
+    path.write_text(CodexConfig.render_env_file(), encoding="utf-8")
     return path
 
 
-def refresh_openai_oauth_token(
+def refresh_codex_oauth_token(
     refresh_token: str,
     *,
-    client_id: str = OPENAI_CODEX_CLIENT_ID,
+    client_id: str = CODEX_CLIENT_ID,
     base_url: str | None = None,
-    scope: str = OPENAI_OAUTH_SCOPE,
+    scope: str = CODEX_OAUTH_SCOPE,
     timeout_seconds: float = 20.0,
     now: datetime | None = None,
 ) -> dict[str, Any]:
-    """Exchange an OpenAI OAuth refresh token for a fresh access token.
+    """Exchange a Codex OAuth refresh token for a fresh access token.
 
-    Returns normalized token metadata suitable for OpenAI/OAI chatenv storage.
-    The refresh token itself is opaque; the authoritative expiry comes from
-    the OAuth token endpoint's ``expires_in`` response.
+    Returns normalized token metadata suitable for CodexConfig storage. The
+    refresh token is opaque; the authoritative expiry comes from the OAuth
+    token endpoint's ``expires_in`` response.
     """
     refresh_token = (refresh_token or "").strip()
     if not refresh_token:
@@ -96,8 +95,8 @@ def refresh_openai_oauth_token(
     refreshed_at = now or datetime.now(timezone.utc)
     resolved_base_url = (
         base_url
-        or (OpenAIConfig.OPENAI_OAUTH_BASE_URL.value or "").strip()
-        or OPENAI_OAUTH_BASE_URL
+        or (CodexConfig.CODEX_OAUTH_BASE_URL.value or "").strip()
+        or CODEX_OAUTH_BASE_URL
     )
     resolved_token_url = _token_url_from_base(resolved_base_url)
     timeout = httpx.Timeout(max(5.0, float(timeout_seconds)))
@@ -114,12 +113,12 @@ def refresh_openai_oauth_token(
         )
 
     if response.status_code != 200:
-        raise RuntimeError(f"OpenAI OAuth token refresh failed with status {response.status_code}")
+        raise RuntimeError(f"Codex OAuth token refresh failed with status {response.status_code}")
 
     payload = response.json()
     access_token = payload.get("access_token")
     if not isinstance(access_token, str) or not access_token.strip():
-        raise RuntimeError("OpenAI OAuth refresh response was missing access_token")
+        raise RuntimeError("Codex OAuth refresh response was missing access_token")
 
     next_refresh = payload.get("refresh_token")
     if not isinstance(next_refresh, str) or not next_refresh.strip():

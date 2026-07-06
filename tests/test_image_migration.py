@@ -252,31 +252,58 @@ def test_codex_model_presets_and_payload_shape():
 
 
 def test_codex_uses_access_token_env(monkeypatch):
-    from chatimg.config import OpenAIConfig
+    from chatimg.config import CodexConfig
     from chatimg.image.codex import CodexImageGenerator
 
     original = {
-        "OPENAI_ACCESS_TOKEN": OpenAIConfig.OPENAI_ACCESS_TOKEN.value,
-        "OPENAI_IMAGE_ASPECT_RATIO": OpenAIConfig.OPENAI_IMAGE_ASPECT_RATIO.value,
-        "OPENAI_CODEX_HOST_MODEL": OpenAIConfig.OPENAI_CODEX_HOST_MODEL.value,
-        "OPENAI_CODEX_BASE_URL": OpenAIConfig.OPENAI_CODEX_BASE_URL.value,
-        "OPENAI_CODEX_TIMEOUT": OpenAIConfig.OPENAI_CODEX_TIMEOUT.value,
+        "CODEX_ACCESS_TOKEN": CodexConfig.CODEX_ACCESS_TOKEN.value,
+        "CODEX_HOST_MODEL": CodexConfig.CODEX_HOST_MODEL.value,
+        "CODEX_API_BASE": CodexConfig.CODEX_API_BASE.value,
+        "CODEX_IMAGE_MODEL": CodexConfig.CODEX_IMAGE_MODEL.value,
     }
     try:
-        OpenAIConfig.OPENAI_ACCESS_TOKEN.value = "not-a-jwt"
-        OpenAIConfig.OPENAI_IMAGE_ASPECT_RATIO.value = "portrait"
-        OpenAIConfig.OPENAI_CODEX_HOST_MODEL.value = "gpt-5.4"
-        OpenAIConfig.OPENAI_CODEX_BASE_URL.value = "https://chatgpt.com/backend-api/codex"
-        OpenAIConfig.OPENAI_CODEX_TIMEOUT.value = "123"
-        generator = CodexImageGenerator(image_model="gpt-image-2-low")
+        CodexConfig.CODEX_ACCESS_TOKEN.value = "not-a-jwt"
+        CodexConfig.CODEX_HOST_MODEL.value = "gpt-5.4"
+        CodexConfig.CODEX_API_BASE.value = "https://chatgpt.com/backend-api/codex"
+        CodexConfig.CODEX_IMAGE_MODEL.value = "gpt-image-2-low"
+        generator = CodexImageGenerator(aspect_ratio="portrait")
         assert generator.resolve_access_token() == "not-a-jwt"
         assert generator.aspect_ratio == "portrait"
         assert generator.host_model == "gpt-5.4"
         assert generator.base_url == "https://chatgpt.com/backend-api/codex"
-        assert generator.timeout_seconds == 123.0
+        assert generator.image_model == "gpt-image-2-low"
+        assert generator.timeout_seconds == 300.0
     finally:
         for key, value in original.items():
-            getattr(OpenAIConfig, key).value = value
+            getattr(CodexConfig, key).value = value
+
+
+def test_codex_does_not_read_hermes_auth_json(monkeypatch, tmp_path):
+    from chatimg.config import CodexConfig
+    from chatimg.image.codex import CodexImageGenerator
+
+    original = {
+        "CODEX_ACCESS_TOKEN": CodexConfig.CODEX_ACCESS_TOKEN.value,
+        "CODEX_REFRESH_TOKEN": CodexConfig.CODEX_REFRESH_TOKEN.value,
+        "CODEX_ACCESS_TOKEN_EXPIRES_AT": CodexConfig.CODEX_ACCESS_TOKEN_EXPIRES_AT.value,
+    }
+    hermes_dir = tmp_path / ".hermes"
+    hermes_dir.mkdir()
+    (hermes_dir / "auth.json").write_text(
+        '{"credential_pool":{"openai-codex":[{"access_token":"not-a-jwt"}]}}',
+        encoding="utf-8",
+    )
+    try:
+        CodexConfig.CODEX_ACCESS_TOKEN.value = ""
+        CodexConfig.CODEX_REFRESH_TOKEN.value = ""
+        CodexConfig.CODEX_ACCESS_TOKEN_EXPIRES_AT.value = ""
+        monkeypatch.setenv("HOME", str(tmp_path))
+
+        with pytest.raises(ValueError, match="CODEX_ACCESS_TOKEN"):
+            CodexImageGenerator().resolve_access_token()
+    finally:
+        for key, value in original.items():
+            getattr(CodexConfig, key).value = value
 
 
 def test_output_path_helper_uses_generated_directory(tmp_path, monkeypatch):
@@ -400,9 +427,9 @@ def test_liblib_download_failure_exits_nonzero(monkeypatch):
 
 
 def test_chatenv_config_contains_image_provider_fields():
-    from chatimg.config import ChatImgConfig
+    from chatimg.config import ChatImgConfig, CodexConfig
 
-    expected = {
+    image_expected = {
         "DASHSCOPE_API_KEY",
         "HUGGINGFACE_HUB_TOKEN",
         "LIBLIB_ACCESS_KEY",
@@ -412,22 +439,29 @@ def test_chatenv_config_contains_image_provider_fields():
         "POLLINATIONS_MODEL_ID",
         "SILICONFLOW_API_KEY",
         "SILICONFLOW_MODEL_ID",
-        "OPENAI_ACCESS_TOKEN",
-        "OPENAI_API_BASE",
-        "OPENAI_API_KEY",
-        "OPENAI_REFRESH_TOKEN",
-        "OPENAI_CODEX_AUTH_JSON",
-        "OPENAI_OAUTH_BASE_URL",
-        "OPENAI_ACCESS_TOKEN_EXPIRES_AT",
-        "OPENAI_IMAGE_MODEL",
-        "OPENAI_IMAGE_ASPECT_RATIO",
-        "OPENAI_CODEX_HOST_MODEL",
-        "OPENAI_CODEX_BASE_URL",
-        "OPENAI_CODEX_TIMEOUT",
     }
-    actual = {
+    image_actual = {
         value.env_key
         for value in vars(ChatImgConfig).values()
         if hasattr(value, "env_key")
     }
-    assert expected <= actual
+    assert image_expected <= image_actual
+    assert not any(key.startswith("OPENAI_") or key.startswith("CODEX_") for key in image_actual)
+
+    codex_expected = {
+        "CODEX_ACCESS_TOKEN",
+        "CODEX_REFRESH_TOKEN",
+        "CODEX_ACCESS_TOKEN_EXPIRES_AT",
+        "CODEX_OAUTH_BASE_URL",
+        "CODEX_API_BASE",
+        "CODEX_HOST_MODEL",
+        "CODEX_IMAGE_MODEL",
+    }
+    codex_actual = {
+        value.env_key
+        for value in vars(CodexConfig).values()
+        if hasattr(value, "env_key")
+    }
+    assert codex_expected <= codex_actual
+    assert "CODEX_AUTH_JSON" not in codex_actual
+    assert "CODEX_TIMEOUT" not in codex_actual

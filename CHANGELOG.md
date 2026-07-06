@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.2 - 2026-07-07
+
+### Changed
+
+- Split Codex OAuth image configuration into a ChatImg-owned `CodexConfig` using `CODEX_*` fields instead of mixing Codex state into OpenAI-compatible `OPENAI_*` settings.
+- Keep `OpenAIConfig` for the `openai` / `crs` Images API provider only; Codex provider now reads `CodexConfig`.
+- Remove the `~/.hermes/auth.json` fallback and the `OPENAI_CODEX_AUTH_JSON` setting so ChatImg does not read Hermes credentials implicitly.
+- Keep command-level details such as timeout and aspect ratio as CLI options or code defaults instead of long-lived environment variables.
+
+### Verification
+
+- Added tests that ensure `ChatImgConfig` has no OpenAI/Codex fields and that Codex does not read Hermes auth files.
+
 ## 0.1.1 - 2026-07-05
 
 ### Added

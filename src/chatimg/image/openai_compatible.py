@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import requests
-from chatimg.config import OpenAIConfig
+from chatenv.configs import OpenAIConfig
 
 from .base import ImageGenerator
 
