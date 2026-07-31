@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.4 - 2026-07-31
+
+### Added
+
+- Add `chatimg codex auth-status` and `chatimg codex auth-refresh` without exposing token values.
+- Document the staged CRS API-key acceptance flow: regular Responses request first, then Images generation.
+
+### Fixed
+
+- Allow Codex image generation from a refresh-only ChatEnv profile when no access token is present.
+- Persist rotated access/refresh tokens back to the active Codex profile with mode `0600` while preserving host/image settings.
+- Use the verified `gpt-5.5` Codex host model default.
+
+### Verification
+
+- CRS API key bound to a debug `73-wzh` account passed `/responses` and generated a real `gpt-image-2` PNG through `chatimg openai generate`.
+- Unit, syntax, CLI, and documentation gates cover the separate OAuth and API-key paths.
+
 ## 0.1.3 - 2026-07-07
 
 ### Fixed

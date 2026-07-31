@@ -97,7 +97,7 @@ class CodexConfig(BaseEnvConfig):
     )
     CODEX_HOST_MODEL = EnvField(
         "CODEX_HOST_MODEL",
-        default="gpt-5.4",
+        default="gpt-5.5",
         desc="Codex host model used to invoke the image_generation tool.",
     )
     CODEX_IMAGE_MODEL = EnvField(

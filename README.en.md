@@ -22,7 +22,7 @@ ChatImg is the ChatArch image-generation package. It carries the provider implem
 Supported providers:
 
 - `openai` / `crs`: OpenAI-compatible Images API via `OPENAI_API_KEY` and `/v1/images/generations`.
-- `codex` / `openai-codex`: ChatGPT/Codex OAuth image bridge via `CODEX_ACCESS_TOKEN`, with `gpt-image-2-*` presets.
+- `codex` / `openai-codex`: ChatGPT/Codex OAuth image bridge via access-token or refresh-only configuration, with `gpt-image-2-*` presets.
 - `pollinations`: Pollinations.ai image URL generation and model listing.
 - `siliconflow`: SiliconFlow OpenAI-compatible image generation.
 - `huggingface`: Hugging Face Inference image generation.
@@ -49,6 +49,8 @@ pip install -e ".[images]"
 chatimg --help
 chatimg --version
 chatimg openai generate "a small red apple icon" -o apple.png
+chatimg codex auth-status
+chatimg codex auth-refresh
 chatimg codex list-models
 chatimg pollinations list-models
 ```
@@ -80,6 +82,17 @@ chatenv use -t oai apple
 chatimg openai generate "a small red apple icon" -o apple.png
 ```
 
+For CRS acceptance, first use the same API key with a regular `/responses` model to verify key authentication, account binding, and model routing, then call the Images API. The client only holds `OPENAI_API_KEY`; this provider never reads or falls back to an OAuth access token.
+
+```bash
+chatimg openai generate \
+  "A simple orange paper airplane over a pale blue grid, no text" \
+  --model gpt-image-2-low \
+  --quality low \
+  --size 1024x1024 \
+  -o generated/crs-api-key-image.png
+```
+
 ### Codex / GPT Image2 verified examples
 
 The `codex` provider uses the ChatGPT/Codex OAuth-backed Responses API. The request payload uses the `image_generation` tool with model `gpt-image-2`. It is not the external Codex CLI.
@@ -91,10 +104,22 @@ Common configuration fields:
 - `CODEX_ACCESS_TOKEN_EXPIRES_AT`: UTC ISO timestamp for the access token expiry.
 - `CODEX_OAUTH_BASE_URL`: Codex OAuth auth server base URL, defaulting to `https://auth.openai.com`.
 - `CODEX_API_BASE`: Codex backend base URL, defaulting to `https://chatgpt.com/backend-api/codex`.
-- `CODEX_HOST_MODEL`: host model that invokes the `image_generation` tool, defaulting to `gpt-5.4`.
+- `CODEX_HOST_MODEL`: host model that invokes the `image_generation` tool, defaulting to `gpt-5.5`.
 - `CODEX_IMAGE_MODEL`: default image preset, defaulting to `gpt-image-2-medium`.
 
 The `codex` provider no longer reads `~/.hermes/auth.json` and no longer maintains `OPENAI_CODEX_*` variables. `--timeout` and `--aspect-ratio` are command-level options, not long-lived env settings.
+
+A refresh-only profile is supported: `generate` exchanges `CODEX_REFRESH_TOKEN` for an access token and persists rotated access/refresh tokens back to the active ChatEnv Codex profile with mode `0600`. The flow can also be checked explicitly:
+
+```bash
+chatenv use -t codex lookeng
+chatimg codex auth-status
+chatimg codex auth-refresh
+chatimg codex generate "a small orange paper airplane" \
+  --host-model gpt-5.5 \
+  --image-model gpt-image-2-low \
+  -o generated/codex-image.png
+```
 
 Basic acceptance image:
 
@@ -157,4 +182,4 @@ python -m twine check dist/*
 
 ## Release state
 
-PyPI `ChatImg` publishes functional releases on the `0.1.x` line; `0.1.3` is the Codex config alias fix patch release.
+PyPI `ChatImg` publishes functional releases on the `0.1.x` line; `0.1.4` adds refresh-only rotation persistence, OAuth status CLI commands, and CRS API-key image acceptance guidance.

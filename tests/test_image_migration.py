@@ -278,6 +278,90 @@ def test_codex_uses_access_token_env(monkeypatch):
             getattr(CodexConfig, key).value = value
 
 
+def test_codex_refresh_only_profile_auto_refreshes_and_persists(monkeypatch, tmp_path):
+    from dotenv import dotenv_values
+
+    from chatimg.config import CodexConfig
+    from chatimg.image.codex import CodexImageGenerator
+
+    original = {
+        key: getattr(CodexConfig, key).value
+        for key in (
+            "CODEX_ACCESS_TOKEN",
+            "CODEX_REFRESH_TOKEN",
+            "CODEX_ACCESS_TOKEN_EXPIRES_AT",
+            "CODEX_OAUTH_BASE_URL",
+        )
+    }
+    active_dir = tmp_path / "envs" / "Codex"
+    active_dir.mkdir(parents=True)
+    active_path = active_dir / ".env"
+    active_path.write_text(
+        "CODEX_ACCESS_TOKEN=''\n"
+        "CODEX_REFRESH_TOKEN='old-refresh-token'\n"
+        "CODEX_ACCESS_TOKEN_EXPIRES_AT=''\n"
+        "CODEX_OAUTH_BASE_URL='https://auth.example.test'\n"
+        "CODEX_API_BASE='https://codex.example.test'\n"
+        "CODEX_HOST_MODEL='gpt-5.5'\n"
+        "CODEX_IMAGE_MODEL='gpt-image-2-low'\n",
+        encoding="utf-8",
+    )
+    captured = {}
+
+    def fake_refresh(refresh_token, *, base_url=None, **kwargs):
+        captured["refresh_token"] = refresh_token
+        captured["base_url"] = base_url
+        return {
+            "access_token": "fresh-access-token",
+            "refresh_token": "rotated-refresh-token",
+            "access_token_expires_at": "2030-01-02T03:04:05Z",
+        }
+
+    monkeypatch.setattr("chatimg.image.codex.refresh_codex_oauth_token", fake_refresh)
+    monkeypatch.setenv("CHATARCH_HOME", str(tmp_path))
+    try:
+        generator = CodexImageGenerator()
+        assert generator.access_token is None
+        assert generator.refresh_token == "old-refresh-token"
+        assert generator.host_model == "gpt-5.5"
+        assert generator.resolve_access_token() == "fresh-access-token"
+    finally:
+        for key, value in original.items():
+            getattr(CodexConfig, key).value = value
+
+    saved = dotenv_values(active_path)
+    assert captured == {
+        "refresh_token": "old-refresh-token",
+        "base_url": "https://auth.example.test",
+    }
+    assert saved["CODEX_ACCESS_TOKEN"] == "fresh-access-token"
+    assert saved["CODEX_REFRESH_TOKEN"] == "rotated-refresh-token"
+    assert saved["CODEX_ACCESS_TOKEN_EXPIRES_AT"] == "2030-01-02T03:04:05Z"
+    assert saved["CODEX_HOST_MODEL"] == "gpt-5.5"
+    assert saved["CODEX_IMAGE_MODEL"] == "gpt-image-2-low"
+    assert active_path.stat().st_mode & 0o777 == 0o600
+
+
+def test_codex_auth_status_cli_masks_tokens(monkeypatch, tmp_path):
+    active_dir = tmp_path / "envs" / "Codex"
+    active_dir.mkdir(parents=True)
+    (active_dir / ".env").write_text(
+        "CODEX_ACCESS_TOKEN='secret-access-token'\n"
+        "CODEX_REFRESH_TOKEN='secret-refresh-token'\n"
+        "CODEX_ACCESS_TOKEN_EXPIRES_AT='2030-01-02T03:04:05Z'\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("CHATARCH_HOME", str(tmp_path))
+
+    result = CliRunner().invoke(main, ["codex", "auth-status"])
+
+    assert result.exit_code == 0
+    assert "Access token: present" in result.output
+    assert "Refresh token: present" in result.output
+    assert "secret-access-token" not in result.output
+    assert "secret-refresh-token" not in result.output
+
+
 def test_codex_does_not_read_hermes_auth_json(monkeypatch, tmp_path):
     from chatimg.config import CodexConfig
     from chatimg.image.codex import CodexImageGenerator
@@ -331,6 +415,7 @@ def test_cli_exposes_provider_groups_and_version():
         "codex",
         "huggingface",
         "liblib",
+        "openai",
         "pollinations",
         "siliconflow",
         "tongyi",

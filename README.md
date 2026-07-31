@@ -22,7 +22,7 @@ ChatImg 是 ChatArch 的图片生成包，承接原 `chattool image` 中已经�
 当前支持：
 
 - `openai` / `crs`：OpenAI-compatible Images API，走 `OPENAI_API_KEY`，请求 `/v1/images/generations`。
-- `codex` / `openai-codex`：ChatGPT/Codex OAuth image bridge，走 `CODEX_ACCESS_TOKEN`，支持 `gpt-image-2-*` preset。
+- `codex` / `openai-codex`：ChatGPT/Codex OAuth image bridge，支持 `CODEX_ACCESS_TOKEN` 或 refresh-only 配置，支持 `gpt-image-2-*` preset。
 - `pollinations`：Pollinations.ai image URL generation and model listing。
 - `siliconflow`：SiliconFlow OpenAI-compatible image generation。
 - `huggingface`：Hugging Face Inference image generation。
@@ -49,6 +49,8 @@ pip install -e ".[images]"
 chatimg --help
 chatimg --version
 chatimg openai generate "a small red apple icon" -o apple.png
+chatimg codex auth-status
+chatimg codex auth-refresh
 chatimg codex list-models
 chatimg pollinations list-models
 ```
@@ -80,6 +82,17 @@ chatenv use -t oai apple
 chatimg openai generate "a small red apple icon" -o apple.png
 ```
 
+CRS 验收建议分两步：先用同一个 API key 调普通 `/responses` 模型确认 key、账号绑定和模型路由，再调用 Images API。客户端始终只持有 `OPENAI_API_KEY`，不会读取或 fallback 到 OAuth access token。
+
+```bash
+chatimg openai generate \
+  "A simple orange paper airplane over a pale blue grid, no text" \
+  --model gpt-image-2-low \
+  --quality low \
+  --size 1024x1024 \
+  -o generated/crs-api-key-image.png
+```
+
 ### Codex / GPT Image2 实测示例
 
 `codex` provider 走 ChatGPT/Codex OAuth-backed Responses API，请求里的 image tool model 是 `gpt-image-2`。它不是外部 Codex CLI。
@@ -91,10 +104,22 @@ chatimg openai generate "a small red apple icon" -o apple.png
 - `CODEX_ACCESS_TOKEN_EXPIRES_AT`：access token 的 UTC ISO 过期时间。
 - `CODEX_OAUTH_BASE_URL`：Codex OAuth auth server base URL，默认 `https://auth.openai.com`。
 - `CODEX_API_BASE`：Codex backend base URL，默认 `https://chatgpt.com/backend-api/codex`。
-- `CODEX_HOST_MODEL`：承载 `image_generation` tool 的 host model，默认 `gpt-5.4`。
+- `CODEX_HOST_MODEL`：承载 `image_generation` tool 的 host model，默认 `gpt-5.5`。
 - `CODEX_IMAGE_MODEL`：默认 image preset，默认 `gpt-image-2-medium`。
 
 `codex` provider 不再读取 `~/.hermes/auth.json`，也不再维护 `OPENAI_CODEX_*` 变量。`--timeout` 和 `--aspect-ratio` 是命令级参数，不写入长期 env。
+
+只配置 `CODEX_REFRESH_TOKEN` 也可以启动：`generate` 会自动换取 access token，并把轮换后的 access/refresh token 以 `0600` 权限写回当前 ChatEnv Codex profile。可先显式检查和刷新：
+
+```bash
+chatenv use -t codex lookeng
+chatimg codex auth-status
+chatimg codex auth-refresh
+chatimg codex generate "a small orange paper airplane" \
+  --host-model gpt-5.5 \
+  --image-model gpt-image-2-low \
+  -o generated/codex-image.png
+```
 
 基础验收图：
 
@@ -157,4 +182,4 @@ python -m twine check dist/*
 
 ## 发布状态
 
-PyPI `ChatImg` 从 `0.1.x` 开始发布功能版本；`0.1.3` 是 Codex 配置 alias 修正 patch 版本。
+PyPI `ChatImg` 从 `0.1.x` 开始发布功能版本；`0.1.4` 增加 refresh-only 自动刷新/持久化、OAuth 状态 CLI，并补齐 CRS API-key 图片验收用法。
