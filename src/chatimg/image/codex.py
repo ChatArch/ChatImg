@@ -2,20 +2,23 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Iterable
 
 import httpx
+from dotenv import dotenv_values
 
 from chatimg import __version__
 from chatimg.config import CodexConfig
-from chatimg.codex_oauth import refresh_codex_oauth_token
+from chatimg.codex_oauth import refresh_codex_oauth_token, save_codex_oauth_token_data
 
 from .base import ImageGenerator
 
 DEFAULT_BASE_URL = "https://chatgpt.com/backend-api/codex"
-DEFAULT_HOST_MODEL = "gpt-5.4"
+DEFAULT_HOST_MODEL = "gpt-5.5"
 DEFAULT_IMAGE_MODEL = "gpt-image-2-medium"
 DEFAULT_ASPECT_RATIO = "square"
 DEFAULT_TIMEOUT_SECONDS = 300.0
@@ -48,6 +51,18 @@ IMAGE_MODEL_CONFIG = {
 }
 
 
+def get_active_codex_env_path() -> Path:
+    raw_home = os.environ.get("CHATARCH_HOME")
+    home = Path(raw_home).expanduser() if raw_home else Path.home() / ".chatarch"
+    return home / "envs" / "Codex" / ".env"
+
+
+def _load_active_codex_env(path: Path) -> dict[str, str]:
+    if not path.exists():
+        return {}
+    return {key: value for key, value in dotenv_values(path).items() if value is not None}
+
+
 class CodexImageGenerator(ImageGenerator):
     """Generate images through the ChatGPT/Codex OAuth-backed Responses API."""
 
@@ -60,20 +75,40 @@ class CodexImageGenerator(ImageGenerator):
         aspect_ratio: str | None = None,
         timeout_seconds: float | None = None,
     ):
-        self.access_token = (access_token or "").strip() or None
+        self.active_env_path = get_active_codex_env_path()
+        active_env = _load_active_codex_env(self.active_env_path)
+
+        def configured(key: str, field: Any, default: str = "") -> str:
+            return str(active_env.get(key) or os.environ.get(key) or field.value or default)
+
+        self.access_token = (
+            access_token or configured("CODEX_ACCESS_TOKEN", CodexConfig.CODEX_ACCESS_TOKEN)
+        ).strip() or None
+        self.refresh_token = configured(
+            "CODEX_REFRESH_TOKEN", CodexConfig.CODEX_REFRESH_TOKEN
+        ).strip()
+        self.access_token_expires_at = configured(
+            "CODEX_ACCESS_TOKEN_EXPIRES_AT", CodexConfig.CODEX_ACCESS_TOKEN_EXPIRES_AT
+        ).strip()
+        self.oauth_base_url = configured(
+            "CODEX_OAUTH_BASE_URL",
+            CodexConfig.CODEX_OAUTH_BASE_URL,
+            "https://auth.openai.com",
+        ).strip()
+        self.persist_refreshed_tokens = self.active_env_path.exists()
         self.base_url = (
             base_url
-            or CodexConfig.CODEX_API_BASE.value
+            or configured("CODEX_API_BASE", CodexConfig.CODEX_API_BASE)
             or DEFAULT_BASE_URL
         )
         self.host_model = (
             host_model
-            or CodexConfig.CODEX_HOST_MODEL.value
+            or configured("CODEX_HOST_MODEL", CodexConfig.CODEX_HOST_MODEL)
             or DEFAULT_HOST_MODEL
         )
         self.image_model = (
             image_model
-            or CodexConfig.CODEX_IMAGE_MODEL.value
+            or configured("CODEX_IMAGE_MODEL", CodexConfig.CODEX_IMAGE_MODEL)
             or DEFAULT_IMAGE_MODEL
         )
         self.aspect_ratio = aspect_ratio or DEFAULT_ASPECT_RATIO
@@ -117,50 +152,63 @@ class CodexImageGenerator(ImageGenerator):
             expires_at = expires_at.replace(tzinfo=timezone.utc)
         return datetime.now(timezone.utc) > expires_at.astimezone(timezone.utc)
 
-    @staticmethod
-    def _apply_refreshed_codex_token(refreshed: dict[str, Any]) -> str:
+    def _apply_refreshed_codex_token(self, refreshed: dict[str, Any]) -> str:
         access_token = str(refreshed.get("access_token") or "").strip()
         if not access_token:
             raise ValueError("Codex OAuth refresh response was missing access_token")
+        self.access_token = access_token
         CodexConfig.CODEX_ACCESS_TOKEN.value = access_token
         refresh_token = str(refreshed.get("refresh_token") or "").strip()
         if refresh_token:
+            self.refresh_token = refresh_token
             CodexConfig.CODEX_REFRESH_TOKEN.value = refresh_token
         expires_at = str(refreshed.get("access_token_expires_at") or "").strip()
         if expires_at:
+            self.access_token_expires_at = expires_at
             CodexConfig.CODEX_ACCESS_TOKEN_EXPIRES_AT.value = expires_at
+        if self.persist_refreshed_tokens:
+            save_codex_oauth_token_data(
+                token_data=refreshed,
+                oauth_base_url=self.oauth_base_url,
+                target_path=self.active_env_path,
+            )
         return access_token
 
     def _refresh_configured_access_token(self) -> str | None:
-        refresh_token = (CodexConfig.CODEX_REFRESH_TOKEN.value or "").strip()
-        if not refresh_token:
+        if not self.refresh_token:
             return None
-        refreshed = refresh_codex_oauth_token(refresh_token)
+        refreshed = refresh_codex_oauth_token(
+            self.refresh_token,
+            base_url=self.oauth_base_url,
+        )
         return self._apply_refreshed_codex_token(refreshed)
+
+    def refresh_access_token(self) -> str:
+        refreshed = self._refresh_configured_access_token()
+        if not refreshed:
+            raise ValueError("CODEX_REFRESH_TOKEN is not configured")
+        return refreshed
 
     def resolve_access_token(self) -> str:
         token = self.access_token
         if token:
             if self.is_token_expired(token):
+                refreshed_token = self._refresh_configured_access_token()
+                if refreshed_token:
+                    return refreshed_token
                 raise ValueError("CODEX_ACCESS_TOKEN is expired")
-            return token
-
-        configured_token = (CodexConfig.CODEX_ACCESS_TOKEN.value or "").strip()
-        if configured_token:
-            configured_expires_at = (
-                CodexConfig.CODEX_ACCESS_TOKEN_EXPIRES_AT.value or ""
-            ).strip()
-            if configured_expires_at and self.is_datetime_expired(configured_expires_at):
+            if self.access_token_expires_at and self.is_datetime_expired(
+                self.access_token_expires_at
+            ):
                 refreshed_token = self._refresh_configured_access_token()
                 if refreshed_token:
                     return refreshed_token
                 raise ValueError("CODEX_ACCESS_TOKEN_EXPIRES_AT is expired")
-            if self.is_token_expired(configured_token):
-                refreshed_token = self._refresh_configured_access_token()
-                if refreshed_token:
-                    return refreshed_token
-                raise ValueError("CODEX_ACCESS_TOKEN is expired")
-            return configured_token
+            return token
+
+        refreshed_token = self._refresh_configured_access_token()
+        if refreshed_token:
+            return refreshed_token
 
         raise ValueError(
             "No usable Codex OAuth access token found. Set CODEX_ACCESS_TOKEN "

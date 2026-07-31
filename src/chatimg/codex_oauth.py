@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 import httpx
+from dotenv import dotenv_values
 
 from chatimg.config import CodexConfig
 
@@ -62,14 +64,48 @@ def save_codex_oauth_token_data(
 ) -> Path:
     """Save normalized Codex OAuth token metadata to a Codex typed env file."""
     path = Path(target_path)
-    CodexConfig.CODEX_ACCESS_TOKEN.value = str(token_data.get("access_token") or "")
-    CodexConfig.CODEX_REFRESH_TOKEN.value = str(token_data.get("refresh_token") or "")
-    CodexConfig.CODEX_ACCESS_TOKEN_EXPIRES_AT.value = str(
-        token_data.get("access_token_expires_at") or ""
+    values = {
+        key: value
+        for key, value in (dotenv_values(path).items() if path.exists() else [])
+        if value is not None
+    }
+    values.update(
+        {
+            "CODEX_ACCESS_TOKEN": str(token_data.get("access_token") or ""),
+            "CODEX_REFRESH_TOKEN": str(token_data.get("refresh_token") or ""),
+            "CODEX_ACCESS_TOKEN_EXPIRES_AT": str(
+                token_data.get("access_token_expires_at") or ""
+            ),
+            "CODEX_OAUTH_BASE_URL": oauth_base_url,
+        }
     )
+
+    CodexConfig.CODEX_ACCESS_TOKEN.value = values["CODEX_ACCESS_TOKEN"]
+    CodexConfig.CODEX_REFRESH_TOKEN.value = values["CODEX_REFRESH_TOKEN"]
+    CodexConfig.CODEX_ACCESS_TOKEN_EXPIRES_AT.value = values[
+        "CODEX_ACCESS_TOKEN_EXPIRES_AT"
+    ]
     CodexConfig.CODEX_OAUTH_BASE_URL.value = oauth_base_url
+
+    lines = [f"# Description: Env file for {CodexConfig._title}.", ""]
+    written: set[str] = set()
+    for field in CodexConfig.get_fields().values():
+        if field.env_key not in values:
+            continue
+        if field.desc:
+            lines.append(f"# {field.desc}")
+        lines.append(f"{field.env_key}={json.dumps(str(values[field.env_key]))}")
+        lines.append("")
+        written.add(field.env_key)
+    for key, value in values.items():
+        if key in written:
+            continue
+        lines.append(f"{key}={json.dumps(str(value))}")
+        lines.append("")
+
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(CodexConfig.render_env_file(), encoding="utf-8")
+    path.write_text("\n".join(lines), encoding="utf-8")
+    path.chmod(0o600)
     return path
 
 

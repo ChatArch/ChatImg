@@ -303,6 +303,47 @@ def codex():
     pass
 
 
+@codex.command(name="auth-status")
+def codex_auth_status():
+    """Show safe Codex OAuth profile status without token values."""
+    try:
+        from chatimg.image.codex import CodexImageGenerator
+
+        generator = CodexImageGenerator()
+        click.echo(f"Codex env file: {generator.active_env_path}")
+        click.echo(f"Access token: {'present' if generator.access_token else 'missing'}")
+        click.echo(f"Refresh token: {'present' if generator.refresh_token else 'missing'}")
+        click.echo(
+            "Access token expires at: "
+            f"{generator.access_token_expires_at or 'unknown'}"
+        )
+        click.echo(f"Host model: {generator.host_model}")
+        click.echo(f"Image model: {generator.image_model}")
+    except Exception as e:
+        raise click.ClickException(str(e)) from e
+
+
+@codex.command(name="auth-refresh")
+def codex_auth_refresh():
+    """Refresh Codex OAuth tokens and persist the active ChatEnv profile."""
+    try:
+        from chatimg.image.codex import CodexImageGenerator
+
+        generator = CodexImageGenerator()
+        if not generator.persist_refreshed_tokens:
+            raise ValueError(
+                f"Active Codex ChatEnv profile not found: {generator.active_env_path}"
+            )
+        generator.refresh_access_token()
+        click.echo(f"Codex OAuth tokens refreshed and saved to {generator.active_env_path}")
+        click.echo(
+            "Access token expires at: "
+            f"{generator.access_token_expires_at or 'unknown'}"
+        )
+    except Exception as e:
+        raise click.ClickException(str(e)) from e
+
+
 @siliconflow.command(name="generate")
 @click.argument("prompt", required=False)
 @click.option("--model", help="Model name.")
