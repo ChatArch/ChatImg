@@ -16,12 +16,16 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.10"
+
       - name: Resolve package version
         id: meta
         run: |
@@ -44,6 +48,17 @@ jobs:
               print(f"version={version}", file=output)
               print(f"tag=v{version}", file=output)
           PY
+
+      - name: Check manual release branch
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "${GITHUB_REF_NAME}" != "${DEFAULT_BRANCH}" ]; then
+            echo "Manual releases must run from ${DEFAULT_BRANCH}; got ${GITHUB_REF_NAME}."
+            exit 1
+          fi
+
       - name: Check tag matches package version
         if: github.event_name == 'push'
         env:
@@ -53,6 +68,18 @@ jobs:
             echo "Tag ${GITHUB_REF_NAME} does not match package version ${RELEASE_TAG}."
             exit 1
           fi
+
+      - name: Check release commit is on default branch
+        if: github.event_name == 'push'
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          git fetch origin "${DEFAULT_BRANCH}"
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" "origin/${DEFAULT_BRANCH}"; then
+            echo "Release tag commit ${GITHUB_SHA} is not contained in origin/${DEFAULT_BRANCH}."
+            exit 1
+          fi
+
       - name: Check PyPI version
         id: pypi
         env:
@@ -80,15 +107,25 @@ jobs:
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               print(f"exists={exists}", file=output)
           PY
-      - name: Stop when version is already on PyPI
+
+      - name: Fail when version is already on PyPI
         if: steps.pypi.outputs.exists == 'true'
-        run: echo "ChatImg ${{ steps.meta.outputs.version }} is already on PyPI; skipping publish."
-      - name: Build distribution
-        if: steps.pypi.outputs.exists == 'false'
         run: |
-          python -m pip install --upgrade pip build twine
-          python -m build
-          python -m twine check dist/*
+          echo "ChatImg ${{ steps.meta.outputs.version }} is already on PyPI; refusing duplicate publish."
+          exit 1
+
+      - name: Install build tools
+        if: steps.pypi.outputs.exists == 'false'
+        run: python -m pip install --upgrade pip build twine
+
+      - name: Build distributions
+        if: steps.pypi.outputs.exists == 'false'
+        run: python -m build
+
+      - name: Check distributions
+        if: steps.pypi.outputs.exists == 'false'
+        run: python -m twine check dist/*
+
       - name: Publish to PyPI
         if: steps.pypi.outputs.exists == 'false'
         uses: pypa/gh-action-pypi-publish@release/v1

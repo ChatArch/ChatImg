@@ -4,11 +4,15 @@
 
 ### Added
 
+- Add `chatimg --tree` output generated from the registered Click provider command surface.
+- Add a first-class bilingual CLI tree documentation page and expose `--tree` in README/docs quick checks.
 - Add `chatimg codex auth-status` and `chatimg codex auth-refresh` without exposing token values.
 - Document the staged CRS API-key acceptance flow: regular Responses request first, then Images generation.
 
 ### Fixed
 
+- Configure MkDocs Material emoji rendering and align package documentation URLs/Preview Docs links to the ChatArch public docs domain.
+- Harden the PyPI publish workflow with tag/version/default-branch and duplicate-version guards.
 - Allow Codex image generation from a refresh-only ChatEnv profile when no access token is present.
 - Persist rotated access/refresh tokens back to the active Codex profile with mode `0600` while preserving host/image settings.
 - Use the verified `gpt-5.5` Codex host model default.

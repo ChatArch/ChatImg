@@ -1,9 +1,48 @@
 site_name: ChatImg 文档
-site_url: https://ChatArch.github.io/ChatImg
+site_url: https://arch.gh.wzhecnu.cn/ChatImg/
 repo_url: https://github.com/ChatArch/ChatImg
+
 theme:
   name: material
   language: zh
+
+plugins:
+  - search
+  - i18n:
+      docs_structure: suffix
+      fallback_to_default: true
+      reconfigure_material: true
+      reconfigure_search: true
+      languages:
+        - locale: zh
+          default: true
+          name: 中文
+          build: true
+          site_name: ChatImg 文档
+        - locale: en
+          name: English
+          build: true
+          site_name: ChatImg Documentation
+          nav_translations:
+            首页: Home
+            CLI 树: CLI Tree
+
+markdown_extensions:
+  - attr_list
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+extra:
+  alternate:
+    - name: 中文
+      link: /ChatImg/
+      lang: zh
+    - name: English
+      link: /ChatImg/en/
+      lang: en
+
 nav:
   - 首页: index.md
-  - English: index.en.md
+  - CLI 树: cli-tree.md

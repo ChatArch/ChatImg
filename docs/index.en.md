@@ -16,6 +16,7 @@ ChatImg is the ChatArch image-generation package. It carries the provider implem
 ```bash
 chatimg --help
 chatimg --version
+chatimg --tree
 chatimg openai generate "a small red apple icon" -o apple.png
 chatimg codex auth-status
 chatimg codex auth-refresh
@@ -120,4 +121,4 @@ pip install -e ".[docs]"
 mkdocs serve
 ```
 
-Chinese version: [index.md](index.md).
+CLI tree: [CLI Tree](cli-tree.md).
