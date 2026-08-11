@@ -5,7 +5,7 @@
     <a href="https://github.com/ChatArch/ChatImg/actions/workflows/ci.yml">
         <img src="https://github.com/ChatArch/ChatImg/actions/workflows/ci.yml/badge.svg" alt="Tests" />
     </a>
-    <a href="https://ChatArch.github.io/ChatImg">
+    <a href="https://arch.gh.wzhecnu.cn/ChatImg/">
         <img src="https://img.shields.io/badge/docs-mkdocs-blue.svg" alt="Documentation" />
     </a>
 </div>
@@ -48,6 +48,7 @@ pip install -e ".[images]"
 ```bash
 chatimg --help
 chatimg --version
+chatimg --tree
 chatimg openai generate "a small red apple icon" -o apple.png
 chatimg codex auth-status
 chatimg codex auth-refresh
@@ -175,6 +176,7 @@ Main supported environment variables:
 ```bash
 PYTHONPATH=src python -m pytest -q
 PYTHONPATH=src python -m chatimg.cli --help
+PYTHONPATH=src python -m chatimg.cli --tree
 PYTHONPATH=src python -m chatimg.cli codex list-models
 python -m build
 python -m twine check dist/*

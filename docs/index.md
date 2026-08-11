@@ -17,6 +17,7 @@ ChatImg 是 ChatArch 的图片生成包，承接原 `chattool image` 中已经�
 ```bash
 chatimg --help
 chatimg --version
+chatimg --tree
 chatimg openai generate "a small red apple icon" -o apple.png
 chatimg codex auth-status
 chatimg codex auth-refresh
@@ -121,4 +122,4 @@ pip install -e ".[docs]"
 mkdocs serve
 ```
 
-英文版见：[index.en.md](index.en.md)。
+CLI 树见：[CLI 树](cli-tree.md)。
