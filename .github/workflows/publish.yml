@@ -4,7 +4,6 @@ on:
   push:
     tags:
       - "v*"
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -49,16 +48,6 @@ jobs:
               print(f"tag=v{version}", file=output)
           PY
 
-      - name: Check manual release branch
-        if: github.event_name == 'workflow_dispatch'
-        env:
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-        run: |
-          if [ "${GITHUB_REF_NAME}" != "${DEFAULT_BRANCH}" ]; then
-            echo "Manual releases must run from ${DEFAULT_BRANCH}; got ${GITHUB_REF_NAME}."
-            exit 1
-          fi
-
       - name: Check tag matches package version
         if: github.event_name == 'push'
         env:
@@ -74,7 +63,7 @@ jobs:
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          git fetch origin "${DEFAULT_BRANCH}"
+          git fetch --no-tags origin "${DEFAULT_BRANCH}:refs/remotes/origin/${DEFAULT_BRANCH}"
           if ! git merge-base --is-ancestor "${GITHUB_SHA}" "origin/${DEFAULT_BRANCH}"; then
             echo "Release tag commit ${GITHUB_SHA} is not contained in origin/${DEFAULT_BRANCH}."
             exit 1
