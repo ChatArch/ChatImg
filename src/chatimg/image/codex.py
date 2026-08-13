@@ -9,19 +9,24 @@ from pathlib import Path
 from typing import Any, Iterable
 
 import httpx
-from dotenv import dotenv_values
+from chatenv import EnvStore, OpenAIConfig, TokenStore, get_paths
+from chatenv.tokens import normalize_token_profile
 
 from chatimg import __version__
-from chatimg.config import CodexConfig
-from chatimg.codex_oauth import refresh_codex_oauth_token, save_codex_oauth_token_data
+from chatimg.codex_oauth import refresh_codex_oauth_token
 
 from .base import ImageGenerator
 
 DEFAULT_BASE_URL = "https://chatgpt.com/backend-api/codex"
+DEFAULT_BACKEND_BASE_URL = "https://chatgpt.com/backend-api"
+DEFAULT_OAUTH_BASE_URL = "https://auth.openai.com"
 DEFAULT_HOST_MODEL = "gpt-5.5"
 DEFAULT_IMAGE_MODEL = "gpt-image-2-medium"
 DEFAULT_ASPECT_RATIO = "square"
 DEFAULT_TIMEOUT_SECONDS = 300.0
+OPENAI_SERVICE_NAME = "OpenAI"
+OPENAI_OAUTH_TOKEN_TYPE = "openai_oauth"
+CHATGPT_BACKEND_BASE_URL_KEYS = ("CHATGPT_BACKEND_BASE_URL",)
 
 IMAGE_MODEL_CONFIG = {
     "gpt-image-2-low": {
@@ -51,16 +56,52 @@ IMAGE_MODEL_CONFIG = {
 }
 
 
-def get_active_codex_env_path() -> Path:
+def _chatarch_home(home: str | Path | None = None) -> Path:
+    if home is not None:
+        return Path(home).expanduser()
     raw_home = os.environ.get("CHATARCH_HOME")
-    home = Path(raw_home).expanduser() if raw_home else Path.home() / ".chatarch"
-    return home / "envs" / "Codex" / ".env"
+    return Path(raw_home).expanduser() if raw_home else Path.home() / ".chatarch"
 
 
-def _load_active_codex_env(path: Path) -> dict[str, str]:
-    if not path.exists():
-        return {}
-    return {key: value for key, value in dotenv_values(path).items() if value is not None}
+def _token_values(payload: dict[str, Any]) -> dict[str, Any]:
+    values = payload.get("values") if isinstance(payload, dict) else None
+    return values if isinstance(values, dict) else {}
+
+
+def _openai_env_path(profile: str, *, home: str | Path | None = None) -> Path:
+    store = EnvStore(get_paths(home).envs_dir)
+    if profile == "default":
+        return store.active_path(OpenAIConfig)
+    return store.profile_path(OpenAIConfig, profile)
+
+
+def _load_openai_profile_values(profile: str, *, home: str | Path | None = None) -> dict[str, str]:
+    store = EnvStore(get_paths(home).envs_dir)
+    if profile == "default":
+        values = store.load_active(OpenAIConfig)
+    else:
+        values = store.load_profile(OpenAIConfig, profile)
+    return {str(key): str(value) for key, value in values.items() if value is not None}
+
+
+def _configured_backend_base_url(values: dict[str, str]) -> str:
+    for key in CHATGPT_BACKEND_BASE_URL_KEYS:
+        value = values.get(key)
+        if value:
+            return value.rstrip("/")
+    return DEFAULT_BACKEND_BASE_URL
+
+
+def _configured_codex_base_url(values: dict[str, str]) -> str:
+    return f"{_configured_backend_base_url(values)}/codex"
+
+
+def _configured_host_model(values: dict[str, str]) -> str:
+    return values.get("OPENAI_API_MODEL") or DEFAULT_HOST_MODEL
+
+
+def _configured_image_model(values: dict[str, str]) -> str:
+    return values.get("OPENAI_IMAGE_MODEL") or DEFAULT_IMAGE_MODEL
 
 
 class CodexImageGenerator(ImageGenerator):
@@ -74,41 +115,66 @@ class CodexImageGenerator(ImageGenerator):
         image_model: str | None = None,
         aspect_ratio: str | None = None,
         timeout_seconds: float | None = None,
+        profile: str | None = "default",
+        home: str | Path | None = None,
     ):
-        self.active_env_path = get_active_codex_env_path()
-        active_env = _load_active_codex_env(self.active_env_path)
+        self.profile = normalize_token_profile(profile)
+        self.home = _chatarch_home(home)
+        self.active_env_path = _openai_env_path(self.profile, home=self.home)
+        self.token_store = TokenStore(home=self.home)
+        self.token_store_path = self.token_store.token_path(OPENAI_SERVICE_NAME, self.profile)
+        self.openai_profile_values = _load_openai_profile_values(self.profile, home=self.home)
+        token_payload = self.token_store.read(OPENAI_SERVICE_NAME, self.profile)
+        self.token_store_values = _token_values(token_payload)
 
-        def configured(key: str, field: Any, default: str = "") -> str:
-            return str(active_env.get(key) or os.environ.get(key) or field.value or default)
+        def stored_token(key: str) -> str:
+            value = self.token_store_values.get(key)
+            return value.strip() if isinstance(value, str) else ""
 
+        def env_seed_value(key: str) -> str:
+            return self.openai_profile_values.get(key, "").strip()
+
+        explicit_access_token = (access_token or "").strip()
+        token_store_access_token = stored_token("access_token")
+        env_seed_access_token = env_seed_value("OPENAI_ACCESS_TOKEN")
         self.access_token = (
-            access_token or configured("CODEX_ACCESS_TOKEN", CodexConfig.CODEX_ACCESS_TOKEN)
-        ).strip() or None
-        self.refresh_token = configured(
-            "CODEX_REFRESH_TOKEN", CodexConfig.CODEX_REFRESH_TOKEN
+            explicit_access_token
+            or token_store_access_token
+            or env_seed_access_token
+            or None
+        )
+        self.refresh_token = stored_token("refresh_token") or env_seed_value(
+            "OPENAI_REFRESH_TOKEN"
+        )
+        if explicit_access_token:
+            self.access_token_expires_at = ""
+        elif token_store_access_token:
+            self.access_token_expires_at = (
+                str(token_payload.get("expires_at") or "").strip()
+                or stored_token("access_token_expires_at")
+            )
+        else:
+            self.access_token_expires_at = env_seed_value(
+                "OPENAI_ACCESS_TOKEN_EXPIRES_AT"
+            )
+        self.oauth_base_url = (
+            self.openai_profile_values.get("OPENAI_OAUTH_BASE_URL")
+            or DEFAULT_OAUTH_BASE_URL
         ).strip()
-        self.access_token_expires_at = configured(
-            "CODEX_ACCESS_TOKEN_EXPIRES_AT", CodexConfig.CODEX_ACCESS_TOKEN_EXPIRES_AT
-        ).strip()
-        self.oauth_base_url = configured(
-            "CODEX_OAUTH_BASE_URL",
-            CodexConfig.CODEX_OAUTH_BASE_URL,
-            "https://auth.openai.com",
-        ).strip()
-        self.persist_refreshed_tokens = self.active_env_path.exists()
+        self.persist_refreshed_tokens = True
         self.base_url = (
             base_url
-            or configured("CODEX_API_BASE", CodexConfig.CODEX_API_BASE)
+            or _configured_codex_base_url(self.openai_profile_values)
             or DEFAULT_BASE_URL
         )
         self.host_model = (
             host_model
-            or configured("CODEX_HOST_MODEL", CodexConfig.CODEX_HOST_MODEL)
+            or _configured_host_model(self.openai_profile_values)
             or DEFAULT_HOST_MODEL
         )
         self.image_model = (
             image_model
-            or configured("CODEX_IMAGE_MODEL", CodexConfig.CODEX_IMAGE_MODEL)
+            or _configured_image_model(self.openai_profile_values)
             or DEFAULT_IMAGE_MODEL
         )
         self.aspect_ratio = aspect_ratio or DEFAULT_ASPECT_RATIO
@@ -157,20 +223,39 @@ class CodexImageGenerator(ImageGenerator):
         if not access_token:
             raise ValueError("Codex OAuth refresh response was missing access_token")
         self.access_token = access_token
-        CodexConfig.CODEX_ACCESS_TOKEN.value = access_token
         refresh_token = str(refreshed.get("refresh_token") or "").strip()
         if refresh_token:
             self.refresh_token = refresh_token
-            CodexConfig.CODEX_REFRESH_TOKEN.value = refresh_token
         expires_at = str(refreshed.get("access_token_expires_at") or "").strip()
         if expires_at:
             self.access_token_expires_at = expires_at
-            CodexConfig.CODEX_ACCESS_TOKEN_EXPIRES_AT.value = expires_at
         if self.persist_refreshed_tokens:
-            save_codex_oauth_token_data(
-                token_data=refreshed,
-                oauth_base_url=self.oauth_base_url,
-                target_path=self.active_env_path,
+            values = {
+                "access_token": access_token,
+                "refresh_token": self.refresh_token,
+                "access_token_expires_at": self.access_token_expires_at,
+            }
+            id_token = str(refreshed.get("id_token") or "").strip()
+            if id_token:
+                values["id_token"] = id_token
+            for metadata_key in ("account_id", "account_label", "account_name"):
+                metadata_value = self.token_store_values.get(metadata_key)
+                if metadata_value:
+                    values[metadata_key] = metadata_value
+            self.token_store.write(
+                OPENAI_SERVICE_NAME,
+                self.profile,
+                values={key: value for key, value in values.items() if value},
+                token_type=OPENAI_OAUTH_TOKEN_TYPE,
+                summary={
+                    "provider": OPENAI_SERVICE_NAME,
+                    "profile": self.profile,
+                    "access_token_present": True,
+                    "refresh_token_present": bool(self.refresh_token),
+                    "id_token_present": bool(id_token),
+                },
+                expires_at=self.access_token_expires_at,
+                source="chatimg-refresh",
             )
         return access_token
 
@@ -186,7 +271,11 @@ class CodexImageGenerator(ImageGenerator):
     def refresh_access_token(self) -> str:
         refreshed = self._refresh_configured_access_token()
         if not refreshed:
-            raise ValueError("CODEX_REFRESH_TOKEN is not configured")
+            raise ValueError(
+                "OpenAI OAuth refresh token is not configured for profile "
+                f"{self.profile!r}. Use tokens/OpenAI/<profile>.json or "
+                "OPENAI_REFRESH_TOKEN in the OpenAI env seed."
+            )
         return refreshed
 
     def resolve_access_token(self) -> str:
@@ -196,14 +285,14 @@ class CodexImageGenerator(ImageGenerator):
                 refreshed_token = self._refresh_configured_access_token()
                 if refreshed_token:
                     return refreshed_token
-                raise ValueError("CODEX_ACCESS_TOKEN is expired")
+                raise ValueError("OpenAI OAuth access token is expired")
             if self.access_token_expires_at and self.is_datetime_expired(
                 self.access_token_expires_at
             ):
                 refreshed_token = self._refresh_configured_access_token()
                 if refreshed_token:
                     return refreshed_token
-                raise ValueError("CODEX_ACCESS_TOKEN_EXPIRES_AT is expired")
+                raise ValueError("OpenAI OAuth access token expiry is in the past")
             return token
 
         refreshed_token = self._refresh_configured_access_token()
@@ -211,8 +300,9 @@ class CodexImageGenerator(ImageGenerator):
             return refreshed_token
 
         raise ValueError(
-            "No usable Codex OAuth access token found. Set CODEX_ACCESS_TOKEN "
-            "or CODEX_REFRESH_TOKEN in the Codex ChatEnv profile."
+            "No usable OpenAI OAuth access token found. Use an OpenAI ChatEnv "
+            "profile with tokens/OpenAI/<profile>.json, run `chatenv token "
+            "refresh OpenAI <profile>`, or pass access_token for one-off use."
         )
 
     @classmethod

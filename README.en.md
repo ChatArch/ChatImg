@@ -22,7 +22,7 @@ ChatImg is the ChatArch image-generation package. It carries the provider implem
 Supported providers:
 
 - `openai` / `crs`: OpenAI-compatible Images API via `OPENAI_API_KEY` and `/v1/images/generations`.
-- `codex` / `openai-codex`: ChatGPT/Codex OAuth image bridge via access-token or refresh-only configuration, with `gpt-image-2-*` presets.
+- `codex` / `openai-codex`: ChatGPT/Codex OAuth image bridge via the ChatEnv `OpenAI` profile plus runtime token-store, with `gpt-image-2-*` presets.
 - `pollinations`: Pollinations.ai image URL generation and model listing.
 - `siliconflow`: SiliconFlow OpenAI-compatible image generation.
 - `huggingface`: Hugging Face Inference image generation.
@@ -50,8 +50,8 @@ chatimg --help
 chatimg --version
 chatimg --tree
 chatimg openai generate "a small red apple icon" -o apple.png
-chatimg codex auth-status
-chatimg codex auth-refresh
+chatimg codex auth-status --profile work
+chatimg codex auth-refresh --profile work
 chatimg codex list-models
 chatimg pollinations list-models
 ```
@@ -60,7 +60,7 @@ Generation examples:
 
 ```bash
 chatimg openai generate "a watercolor fox in the snow" --model gpt-image-2-medium --size 1024x1024 -o fox.png
-chatimg codex generate "a watercolor fox in the snow" --aspect-ratio square -o fox-codex.png
+chatimg codex generate "a watercolor fox in the snow" --profile work --aspect-ratio square -o fox-codex.png
 chatimg pollinations generate "a cyberpunk cat" --model flux --width 512 --height 512 -o cat.png
 chatimg siliconflow generate "a cute dog" --size 1024x1024 -o dog.png
 chatimg huggingface generate "A futuristic city at night" -o city.png
@@ -98,25 +98,21 @@ chatimg openai generate \
 
 The `codex` provider uses the ChatGPT/Codex OAuth-backed Responses API. The request payload uses the `image_generation` tool with model `gpt-image-2`. It is not the external Codex CLI.
 
-Common configuration fields:
+`chatimg codex` now reuses ChatEnv's shared `OpenAI` profile and runtime token-store, so users no longer maintain a separate Codex env file:
 
-- `CODEX_ACCESS_TOKEN`: Codex OAuth access token.
-- `CODEX_REFRESH_TOKEN`: Codex OAuth refresh token used to refresh the access token.
-- `CODEX_ACCESS_TOKEN_EXPIRES_AT`: UTC ISO timestamp for the access token expiry.
-- `CODEX_OAUTH_BASE_URL`: Codex OAuth auth server base URL, defaulting to `https://auth.openai.com`.
-- `CODEX_API_BASE`: Codex backend base URL, defaulting to `https://chatgpt.com/backend-api/codex`.
-- `CODEX_HOST_MODEL`: host model that invokes the `image_generation` tool, defaulting to `gpt-5.5`.
-- `CODEX_IMAGE_MODEL`: default image preset, defaulting to `gpt-image-2-medium`.
+- Runtime token-store: `~/.chatarch/tokens/OpenAI/<profile>.json`, containing dynamic access/refresh token state. These values have the highest priority.
+- Stable seed: `~/.chatarch/envs/OpenAI/<profile>.env` (`default` uses active `OpenAI/.env`), used only for OAuth/backend/model seed or fallback values.
+- Common seed fields: `OPENAI_OAUTH_BASE_URL`, `CHATGPT_BACKEND_BASE_URL`, `OPENAI_API_MODEL`, and `OPENAI_IMAGE_MODEL`.
+- The request URL defaults to `${CHATGPT_BACKEND_BASE_URL}/codex/responses`.
+- The `openai`/`crs` API-key provider still reads only `OPENAI_API_KEY` and never falls back to OAuth tokens.
 
-The `codex` provider no longer reads `~/.hermes/auth.json` and no longer maintains `OPENAI_CODEX_*` variables. `--timeout` and `--aspect-ratio` are command-level options, not long-lived env settings.
-
-A refresh-only profile is supported: `generate` exchanges `CODEX_REFRESH_TOKEN` for an access token and persists rotated access/refresh tokens back to the active ChatEnv Codex profile with mode `0600`. The flow can also be checked explicitly:
+Specify the OpenAI profile explicitly when needed:
 
 ```bash
-chatenv use -t codex lookeng
-chatimg codex auth-status
-chatimg codex auth-refresh
+chatimg codex auth-status --profile work
+chatimg codex auth-refresh --profile work
 chatimg codex generate "a small orange paper airplane" \
+  --profile work \
   --host-model gpt-5.5 \
   --image-model gpt-image-2-low \
   -o generated/codex-image.png
@@ -149,7 +145,7 @@ chatimg codex generate \
 ```python
 from chatimg.image import create_generator
 
-generator = create_generator("codex")
+generator = create_generator("codex", profile="work")
 result = generator.generate("A cute cat astronaut")
 ```
 
@@ -164,7 +160,7 @@ chatimg = "chatimg.config"
 Main supported environment variables:
 
 - `OPENAI_API_BASE`, `OPENAI_API_KEY`, `OPENAI_IMAGE_MODEL`
-- `CODEX_ACCESS_TOKEN`, `CODEX_REFRESH_TOKEN`, `CODEX_ACCESS_TOKEN_EXPIRES_AT`, `CODEX_OAUTH_BASE_URL`, `CODEX_API_BASE`, `CODEX_HOST_MODEL`, `CODEX_IMAGE_MODEL`
+- `OPENAI_OAUTH_BASE_URL`, `CHATGPT_BACKEND_BASE_URL`, `OPENAI_API_MODEL`, and `OPENAI_IMAGE_MODEL` as `OpenAI` profile seed values; runtime OAuth tokens are managed by `tokens/OpenAI/<profile>.json`
 - `POLLINATIONS_API_KEY`, `POLLINATIONS_MODEL_ID`
 - `SILICONFLOW_API_KEY`, `SILICONFLOW_MODEL_ID`
 - `HUGGINGFACE_HUB_TOKEN`
@@ -184,4 +180,4 @@ python -m twine check dist/*
 
 ## Release state
 
-PyPI `ChatImg` publishes functional releases on the `0.1.x` line; `0.1.4` adds refresh-only rotation persistence, OAuth status CLI commands, and CRS API-key image acceptance guidance.
+PyPI `ChatImg` publishes functional releases on the `0.1.x` line; `0.1.5` moves `chatimg codex` to ChatEnv `OpenAI` profiles plus the `tokens/OpenAI/<profile>.json` token-store and adds `--profile`.

@@ -251,59 +251,48 @@ def test_codex_model_presets_and_payload_shape():
     assert payload["tools"][0]["size"] == "1536x1024"
 
 
-def test_codex_uses_access_token_env(monkeypatch):
-    from chatimg.config import CodexConfig
+def test_codex_uses_openai_profile_env_seed_when_token_store_is_empty(monkeypatch, tmp_path):
     from chatimg.image.codex import CodexImageGenerator
 
-    original = {
-        "CODEX_ACCESS_TOKEN": CodexConfig.CODEX_ACCESS_TOKEN.value,
-        "CODEX_HOST_MODEL": CodexConfig.CODEX_HOST_MODEL.value,
-        "CODEX_API_BASE": CodexConfig.CODEX_API_BASE.value,
-        "CODEX_IMAGE_MODEL": CodexConfig.CODEX_IMAGE_MODEL.value,
-    }
-    try:
-        CodexConfig.CODEX_ACCESS_TOKEN.value = "not-a-jwt"
-        CodexConfig.CODEX_HOST_MODEL.value = "gpt-5.4"
-        CodexConfig.CODEX_API_BASE.value = "https://chatgpt.com/backend-api/codex"
-        CodexConfig.CODEX_IMAGE_MODEL.value = "gpt-image-2-low"
-        generator = CodexImageGenerator(aspect_ratio="portrait")
-        assert generator.resolve_access_token() == "not-a-jwt"
-        assert generator.aspect_ratio == "portrait"
-        assert generator.host_model == "gpt-5.4"
-        assert generator.base_url == "https://chatgpt.com/backend-api/codex"
-        assert generator.image_model == "gpt-image-2-low"
-        assert generator.timeout_seconds == 300.0
-    finally:
-        for key, value in original.items():
-            getattr(CodexConfig, key).value = value
+    openai_dir = tmp_path / "envs" / "OpenAI"
+    openai_dir.mkdir(parents=True)
+    (openai_dir / ".env").write_text(
+        "OPENAI_ACCESS_TOKEN='not-a-jwt'\n"
+        "OPENAI_REFRESH_TOKEN='env-refresh-token'\n"
+        "OPENAI_ACCESS_TOKEN_EXPIRES_AT='2030-01-02T03:04:05Z'\n"
+        "OPENAI_OAUTH_BASE_URL='https://auth.example.test'\n"
+        "CHATGPT_BACKEND_BASE_URL='https://gpt.example.test/backend-api'\n"
+        "OPENAI_API_MODEL='gpt-5.4'\n"
+        "OPENAI_IMAGE_MODEL='gpt-image-2-low'\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("CHATARCH_HOME", str(tmp_path))
+
+    generator = CodexImageGenerator(aspect_ratio="portrait")
+
+    assert generator.resolve_access_token() == "not-a-jwt"
+    assert generator.refresh_token == "env-refresh-token"
+    assert generator.aspect_ratio == "portrait"
+    assert generator.host_model == "gpt-5.4"
+    assert generator.base_url == "https://gpt.example.test/backend-api/codex"
+    assert generator.image_model == "gpt-image-2-low"
+    assert generator.timeout_seconds == 300.0
 
 
-def test_codex_refresh_only_profile_auto_refreshes_and_persists(monkeypatch, tmp_path):
-    from dotenv import dotenv_values
-
-    from chatimg.config import CodexConfig
+def test_codex_refresh_only_openai_profile_auto_refreshes_and_persists_token_store(monkeypatch, tmp_path):
+    from chatenv import TokenStore
     from chatimg.image.codex import CodexImageGenerator
 
-    original = {
-        key: getattr(CodexConfig, key).value
-        for key in (
-            "CODEX_ACCESS_TOKEN",
-            "CODEX_REFRESH_TOKEN",
-            "CODEX_ACCESS_TOKEN_EXPIRES_AT",
-            "CODEX_OAUTH_BASE_URL",
-        )
-    }
-    active_dir = tmp_path / "envs" / "Codex"
-    active_dir.mkdir(parents=True)
-    active_path = active_dir / ".env"
-    active_path.write_text(
-        "CODEX_ACCESS_TOKEN=''\n"
-        "CODEX_REFRESH_TOKEN='old-refresh-token'\n"
-        "CODEX_ACCESS_TOKEN_EXPIRES_AT=''\n"
-        "CODEX_OAUTH_BASE_URL='https://auth.example.test'\n"
-        "CODEX_API_BASE='https://codex.example.test'\n"
-        "CODEX_HOST_MODEL='gpt-5.5'\n"
-        "CODEX_IMAGE_MODEL='gpt-image-2-low'\n",
+    openai_dir = tmp_path / "envs" / "OpenAI"
+    openai_dir.mkdir(parents=True)
+    (openai_dir / ".env").write_text(
+        "OPENAI_ACCESS_TOKEN=''\n"
+        "OPENAI_REFRESH_TOKEN='old-refresh-token'\n"
+        "OPENAI_ACCESS_TOKEN_EXPIRES_AT=''\n"
+        "OPENAI_OAUTH_BASE_URL='https://auth.example.test'\n"
+        "CHATGPT_BACKEND_BASE_URL='https://codex.example.test/backend-api'\n"
+        "OPENAI_API_MODEL='gpt-5.5'\n"
+        "OPENAI_IMAGE_MODEL='gpt-image-2-low'\n",
         encoding="utf-8",
     )
     captured = {}
@@ -319,75 +308,259 @@ def test_codex_refresh_only_profile_auto_refreshes_and_persists(monkeypatch, tmp
 
     monkeypatch.setattr("chatimg.image.codex.refresh_codex_oauth_token", fake_refresh)
     monkeypatch.setenv("CHATARCH_HOME", str(tmp_path))
-    try:
-        generator = CodexImageGenerator()
-        assert generator.access_token is None
-        assert generator.refresh_token == "old-refresh-token"
-        assert generator.host_model == "gpt-5.5"
-        assert generator.resolve_access_token() == "fresh-access-token"
-    finally:
-        for key, value in original.items():
-            getattr(CodexConfig, key).value = value
 
-    saved = dotenv_values(active_path)
+    generator = CodexImageGenerator()
+    assert generator.access_token is None
+    assert generator.refresh_token == "old-refresh-token"
+    assert generator.host_model == "gpt-5.5"
+    assert generator.resolve_access_token() == "fresh-access-token"
+
+    token_path = TokenStore(home=tmp_path).token_path("OpenAI", "default")
+    saved = TokenStore(home=tmp_path).read("OpenAI", "default")
+    saved_values = saved["values"]
     assert captured == {
         "refresh_token": "old-refresh-token",
         "base_url": "https://auth.example.test",
     }
-    assert saved["CODEX_ACCESS_TOKEN"] == "fresh-access-token"
-    assert saved["CODEX_REFRESH_TOKEN"] == "rotated-refresh-token"
-    assert saved["CODEX_ACCESS_TOKEN_EXPIRES_AT"] == "2030-01-02T03:04:05Z"
-    assert saved["CODEX_HOST_MODEL"] == "gpt-5.5"
-    assert saved["CODEX_IMAGE_MODEL"] == "gpt-image-2-low"
-    assert active_path.stat().st_mode & 0o777 == 0o600
+    assert saved_values["access_token"] == "fresh-access-token"
+    assert saved_values["refresh_token"] == "rotated-refresh-token"
+    assert saved_values["access_token_expires_at"] == "2030-01-02T03:04:05Z"
+    assert saved["expires_at"] == "2030-01-02T03:04:05Z"
+    assert token_path.stat().st_mode & 0o777 == 0o600
 
 
-def test_codex_auth_status_cli_masks_tokens(monkeypatch, tmp_path):
-    active_dir = tmp_path / "envs" / "Codex"
-    active_dir.mkdir(parents=True)
-    (active_dir / ".env").write_text(
-        "CODEX_ACCESS_TOKEN='secret-access-token'\n"
-        "CODEX_REFRESH_TOKEN='secret-refresh-token'\n"
-        "CODEX_ACCESS_TOKEN_EXPIRES_AT='2030-01-02T03:04:05Z'\n",
+def test_codex_auth_status_cli_masks_openai_profile_tokens(monkeypatch, tmp_path):
+    from chatenv import TokenStore
+
+    openai_dir = tmp_path / "envs" / "OpenAI"
+    openai_dir.mkdir(parents=True)
+    (openai_dir / ".env").write_text(
+        "OPENAI_OAUTH_BASE_URL='https://auth.example.test'\n"
+        "CHATGPT_BACKEND_BASE_URL='https://gpt.example.test/backend-api'\n",
         encoding="utf-8",
+    )
+    TokenStore(home=tmp_path).write(
+        "OpenAI",
+        "default",
+        values={
+            "access_token": "secret-access-token",
+            "refresh_token": "secret-refresh-token",
+        },
+        expires_at="2030-01-02T03:04:05Z",
+        source="test",
     )
     monkeypatch.setenv("CHATARCH_HOME", str(tmp_path))
 
     result = CliRunner().invoke(main, ["codex", "auth-status"])
 
     assert result.exit_code == 0
+    assert "OpenAI profile: default" in result.output
     assert "Access token: present" in result.output
     assert "Refresh token: present" in result.output
     assert "secret-access-token" not in result.output
     assert "secret-refresh-token" not in result.output
 
 
-def test_codex_does_not_read_hermes_auth_json(monkeypatch, tmp_path):
-    from chatimg.config import CodexConfig
+def test_codex_does_not_read_hermes_auth_json_or_legacy_codex_env(monkeypatch, tmp_path):
     from chatimg.image.codex import CodexImageGenerator
 
-    original = {
-        "CODEX_ACCESS_TOKEN": CodexConfig.CODEX_ACCESS_TOKEN.value,
-        "CODEX_REFRESH_TOKEN": CodexConfig.CODEX_REFRESH_TOKEN.value,
-        "CODEX_ACCESS_TOKEN_EXPIRES_AT": CodexConfig.CODEX_ACCESS_TOKEN_EXPIRES_AT.value,
-    }
     hermes_dir = tmp_path / ".hermes"
     hermes_dir.mkdir()
     (hermes_dir / "auth.json").write_text(
         '{"credential_pool":{"openai-codex":[{"access_token":"not-a-jwt"}]}}',
         encoding="utf-8",
     )
-    try:
-        CodexConfig.CODEX_ACCESS_TOKEN.value = ""
-        CodexConfig.CODEX_REFRESH_TOKEN.value = ""
-        CodexConfig.CODEX_ACCESS_TOKEN_EXPIRES_AT.value = ""
-        monkeypatch.setenv("HOME", str(tmp_path))
+    codex_dir = tmp_path / ".chatarch" / "envs" / "Codex"
+    codex_dir.mkdir(parents=True)
+    (codex_dir / ".env").write_text(
+        "CODEX_ACCESS_TOKEN='legacy-access-token'\n"
+        "CODEX_REFRESH_TOKEN='legacy-refresh-token'\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("CHATARCH_HOME", raising=False)
 
-        with pytest.raises(ValueError, match="CODEX_ACCESS_TOKEN"):
-            CodexImageGenerator().resolve_access_token()
-    finally:
-        for key, value in original.items():
-            getattr(CodexConfig, key).value = value
+    with pytest.raises(ValueError, match="OpenAI OAuth access token"):
+        CodexImageGenerator().resolve_access_token()
+
+
+
+def test_codex_openai_profile_reads_token_store_before_env_seed(monkeypatch, tmp_path):
+    from chatenv import TokenStore
+    from chatimg.image.codex import CodexImageGenerator
+
+    openai_dir = tmp_path / "envs" / "OpenAI"
+    openai_dir.mkdir(parents=True)
+    (openai_dir / "alice.env").write_text(
+        "OPENAI_ACCESS_TOKEN='env-access-token'\n"
+        "OPENAI_REFRESH_TOKEN='env-refresh-token'\n"
+        "OPENAI_ACCESS_TOKEN_EXPIRES_AT='2030-01-02T03:04:05Z'\n"
+        "OPENAI_OAUTH_BASE_URL='https://auth.example.test'\n"
+        "CHATGPT_BACKEND_BASE_URL='https://gpt.example.test/backend-api'\n"
+        "OPENAI_API_MODEL='gpt-5.5'\n"
+        "OPENAI_IMAGE_MODEL='gpt-image-2-low'\n",
+        encoding="utf-8",
+    )
+    TokenStore(home=tmp_path).write(
+        "OpenAI",
+        "alice",
+        values={
+            "access_token": "store-access-token",
+            "refresh_token": "store-refresh-token",
+        },
+        expires_at="2030-01-02T03:04:05Z",
+        source="test",
+    )
+    codex_dir = tmp_path / "envs" / "Codex"
+    codex_dir.mkdir(parents=True)
+    (codex_dir / ".env").write_text(
+        "CODEX_ACCESS_TOKEN='must-not-be-read'\n"
+        "CODEX_API_BASE='https://legacy.example.test'\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("CHATARCH_HOME", str(tmp_path))
+
+    generator = CodexImageGenerator(profile="alice")
+
+    assert generator.profile == "alice"
+    assert generator.active_env_path == openai_dir / "alice.env"
+    assert generator.token_store_path == tmp_path / "tokens" / "OpenAI" / "alice.json"
+    assert generator.resolve_access_token() == "store-access-token"
+    assert generator.refresh_token == "store-refresh-token"
+    assert generator.oauth_base_url == "https://auth.example.test"
+    assert generator.base_url == "https://gpt.example.test/backend-api/codex"
+    assert generator.host_model == "gpt-5.5"
+    assert generator.image_model == "gpt-image-2-low"
+
+
+def test_codex_token_store_access_token_without_expiry_ignores_env_seed_expiry(
+    monkeypatch, tmp_path
+):
+    from chatenv import TokenStore
+    from chatimg.image.codex import CodexImageGenerator
+
+    openai_dir = tmp_path / "envs" / "OpenAI"
+    openai_dir.mkdir(parents=True)
+    (openai_dir / "alice.env").write_text(
+        "OPENAI_ACCESS_TOKEN='env-access-token'\n"
+        "OPENAI_ACCESS_TOKEN_EXPIRES_AT='2000-01-02T03:04:05Z'\n"
+        "OPENAI_OAUTH_BASE_URL='https://auth.example.test'\n"
+        "CHATGPT_BACKEND_BASE_URL='https://gpt.example.test/backend-api'\n",
+        encoding="utf-8",
+    )
+    TokenStore(home=tmp_path).write(
+        "OpenAI",
+        "alice",
+        values={"access_token": "store-access-token"},
+        source="test",
+    )
+    monkeypatch.setenv("CHATARCH_HOME", str(tmp_path))
+
+    generator = CodexImageGenerator(profile="alice")
+
+    assert generator.access_token == "store-access-token"
+    assert generator.access_token_expires_at == ""
+    assert generator.resolve_access_token() == "store-access-token"
+
+
+def test_codex_openai_profile_rejects_path_segments(monkeypatch, tmp_path):
+    from chatimg.image.codex import CodexImageGenerator
+
+    monkeypatch.setenv("CHATARCH_HOME", str(tmp_path))
+
+    with pytest.raises(ValueError, match="single path segment"):
+        CodexImageGenerator(profile="../alice")
+
+
+def test_codex_openai_profile_refresh_uses_token_store_refresh_and_persists(monkeypatch, tmp_path):
+    from chatenv import TokenStore
+    from chatimg.image.codex import CodexImageGenerator
+
+    openai_dir = tmp_path / "envs" / "OpenAI"
+    openai_dir.mkdir(parents=True)
+    (openai_dir / "alice.env").write_text(
+        "OPENAI_REFRESH_TOKEN='env-refresh-token'\n"
+        "OPENAI_OAUTH_BASE_URL='https://auth.example.test'\n"
+        "CHATGPT_BACKEND_BASE_URL='https://gpt.example.test/backend-api'\n",
+        encoding="utf-8",
+    )
+    store = TokenStore(home=tmp_path)
+    store.write(
+        "OpenAI",
+        "alice",
+        values={"refresh_token": "store-refresh-token"},
+        source="test",
+    )
+    monkeypatch.setenv("CHATARCH_HOME", str(tmp_path))
+    captured = {}
+
+    def fake_refresh(refresh_token, *, base_url=None, **kwargs):
+        captured["refresh_token"] = refresh_token
+        captured["base_url"] = base_url
+        return {
+            "access_token": "fresh-access-token",
+            "refresh_token": "rotated-refresh-token",
+            "access_token_expires_at": "2030-01-02T03:04:05Z",
+        }
+
+    monkeypatch.setattr("chatimg.image.codex.refresh_codex_oauth_token", fake_refresh)
+
+    generator = CodexImageGenerator(profile="alice")
+    assert generator.resolve_access_token() == "fresh-access-token"
+
+    saved_values = store.read("OpenAI", "alice")["values"]
+    assert captured == {
+        "refresh_token": "store-refresh-token",
+        "base_url": "https://auth.example.test",
+    }
+    assert saved_values["access_token"] == "fresh-access-token"
+    assert saved_values["refresh_token"] == "rotated-refresh-token"
+    assert saved_values["access_token_expires_at"] == "2030-01-02T03:04:05Z"
+
+
+def test_codex_generate_cli_accepts_openai_profile(monkeypatch, tmp_path):
+    from click.testing import CliRunner
+    from chatimg.cli import main
+
+    captured = {}
+
+    class FakeGenerator:
+        host_model = "gpt-5.5"
+        image_model = "gpt-image-2-low"
+
+        def generate(self, prompt):
+            captured["prompt"] = prompt
+            return b"fake-png"
+
+    def fake_create_generator(provider, **kwargs):
+        captured["provider"] = provider
+        captured["kwargs"] = kwargs
+        return FakeGenerator()
+
+    monkeypatch.setattr("chatimg.image.cli.create_generator", fake_create_generator)
+    output = tmp_path / "image.png"
+
+    result = CliRunner().invoke(
+        main,
+        [
+            "codex",
+            "generate",
+            "a fox",
+            "--profile",
+            "alice",
+            "--image-model",
+            "gpt-image-2-low",
+            "-o",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert output.read_bytes() == b"fake-png"
+    assert captured["provider"] == "codex"
+    assert captured["prompt"] == "a fox"
+    assert captured["kwargs"]["profile"] == "alice"
+    assert captured["kwargs"]["image_model"] == "gpt-image-2-low"
 
 
 def test_output_path_helper_uses_generated_directory(tmp_path, monkeypatch):
@@ -511,8 +684,9 @@ def test_liblib_download_failure_exits_nonzero(monkeypatch):
     assert "download failed" in result.output
 
 
-def test_chatenv_config_contains_image_provider_fields():
-    from chatimg.config import ChatImgConfig, CodexConfig
+def test_chatenv_config_contains_image_provider_fields_and_no_codex_env_namespace():
+    import chatimg.config as config
+    from chatimg.config import ChatImgConfig
 
     image_expected = {
         "DASHSCOPE_API_KEY",
@@ -532,22 +706,4 @@ def test_chatenv_config_contains_image_provider_fields():
     }
     assert image_expected <= image_actual
     assert not any(key.startswith("OPENAI_") or key.startswith("CODEX_") for key in image_actual)
-
-    codex_expected = {
-        "CODEX_ACCESS_TOKEN",
-        "CODEX_REFRESH_TOKEN",
-        "CODEX_ACCESS_TOKEN_EXPIRES_AT",
-        "CODEX_OAUTH_BASE_URL",
-        "CODEX_API_BASE",
-        "CODEX_HOST_MODEL",
-        "CODEX_IMAGE_MODEL",
-    }
-    codex_actual = {
-        value.env_key
-        for value in vars(CodexConfig).values()
-        if hasattr(value, "env_key")
-    }
-    assert codex_expected <= codex_actual
-    assert "CODEX_AUTH_JSON" not in codex_actual
-    assert "CODEX_TIMEOUT" not in codex_actual
-    assert CodexConfig._aliases == ["codex"]
+    assert not hasattr(config, "CodexConfig")

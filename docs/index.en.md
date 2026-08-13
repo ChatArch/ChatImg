@@ -18,8 +18,8 @@ chatimg --help
 chatimg --version
 chatimg --tree
 chatimg openai generate "a small red apple icon" -o apple.png
-chatimg codex auth-status
-chatimg codex auth-refresh
+chatimg codex auth-status --profile work
+chatimg codex auth-refresh --profile work
 chatimg codex list-models
 chatimg pollinations list-models
 ```
@@ -28,7 +28,7 @@ Generation examples:
 
 ```bash
 chatimg openai generate "a watercolor fox in the snow" --model gpt-image-2-medium --size 1024x1024 -o fox.png
-chatimg codex generate "a watercolor fox in the snow" --aspect-ratio square -o fox-codex.png
+chatimg codex generate "a watercolor fox in the snow" --profile work --aspect-ratio square -o fox-codex.png
 chatimg pollinations generate "a cyberpunk cat" --model flux --width 512 --height 512 -o cat.png
 ```
 
@@ -56,25 +56,24 @@ chatimg openai generate \
 
 The `codex` provider uses the ChatGPT/Codex OAuth-backed Responses API. The request payload uses the `image_generation` tool with model `gpt-image-2`. It is not the external Codex CLI.
 
-Common configuration fields:
+`chatimg codex` now reuses ChatEnv's shared `OpenAI` profile and runtime token-store, so users no longer maintain a separate Codex env file:
 
-- `CODEX_ACCESS_TOKEN`: Codex OAuth access token.
-- `CODEX_REFRESH_TOKEN`: Codex OAuth refresh token used to refresh the access token.
-- `CODEX_ACCESS_TOKEN_EXPIRES_AT`: UTC ISO timestamp for the access token expiry.
-- `CODEX_OAUTH_BASE_URL`: Codex OAuth auth server base URL, defaulting to `https://auth.openai.com`.
-- `CODEX_API_BASE`: Codex backend base URL, defaulting to `https://chatgpt.com/backend-api/codex`.
-- `CODEX_HOST_MODEL`: host model that invokes the `image_generation` tool, defaulting to `gpt-5.5`.
-- `CODEX_IMAGE_MODEL`: default image preset, defaulting to `gpt-image-2-medium`.
+- Runtime token-store: `~/.chatarch/tokens/OpenAI/<profile>.json`, containing dynamic access/refresh token state. These values have the highest priority.
+- Stable seed: `~/.chatarch/envs/OpenAI/<profile>.env` (`default` uses active `OpenAI/.env`), used only for OAuth/backend/model seed or fallback values.
+- Common seed fields: `OPENAI_OAUTH_BASE_URL`, `CHATGPT_BACKEND_BASE_URL`, `OPENAI_API_MODEL`, and `OPENAI_IMAGE_MODEL`.
+- The request URL defaults to `${CHATGPT_BACKEND_BASE_URL}/codex/responses`.
+- The `openai`/`crs` API-key provider still reads only `OPENAI_API_KEY` and never falls back to OAuth tokens.
 
-The `codex` provider no longer reads `~/.hermes/auth.json` and no longer maintains `OPENAI_CODEX_*` variables. `--timeout` and `--aspect-ratio` are command-level options, not long-lived env settings.
-
-A refresh-only profile automatically acquires an access token and writes rotated tokens back to the active ChatEnv Codex profile with mode `0600`:
+Specify the OpenAI profile explicitly when needed:
 
 ```bash
-chatenv use -t codex lookeng
-chatimg codex auth-status
-chatimg codex auth-refresh
-chatimg codex generate "a small orange paper airplane" --image-model gpt-image-2-low
+chatimg codex auth-status --profile work
+chatimg codex auth-refresh --profile work
+chatimg codex generate "a small orange paper airplane" \
+  --profile work \
+  --host-model gpt-5.5 \
+  --image-model gpt-image-2-low \
+  -o generated/codex-image.png
 ```
 
 Basic acceptance image:
@@ -104,7 +103,7 @@ chatimg codex generate \
 ```python
 from chatimg.image import create_generator
 
-generator = create_generator("codex")
+generator = create_generator("codex", profile="work")
 result = generator.generate("A cute cat astronaut")
 ```
 
@@ -112,7 +111,7 @@ result = generator.generate("A cute cat astronaut")
 
 ChatImg registers a ChatEnv `chatimg` config type. Run `chatenv test -t chatimg -I` for a side-effect-free schema check.
 
-Main fields: `OPENAI_API_BASE` / `OPENAI_API_KEY` for the OpenAI-compatible Images API; `CODEX_*` for the Codex OAuth image bridge; other providers use `POLLINATIONS_*`, `SILICONFLOW_*`, `HUGGINGFACE_HUB_TOKEN`, `LIBLIB_*`, `DASHSCOPE_API_KEY`.
+Main fields: `OPENAI_API_BASE` / `OPENAI_API_KEY` for the OpenAI-compatible Images API; `OPENAI_OAUTH_BASE_URL` / `CHATGPT_BACKEND_BASE_URL` / `OPENAI_API_MODEL` / `OPENAI_IMAGE_MODEL` for the OpenAI profile seed; runtime OAuth tokens live in `tokens/OpenAI/<profile>.json`; other providers use `POLLINATIONS_*`, `SILICONFLOW_*`, `HUGGINGFACE_HUB_TOKEN`, `LIBLIB_*`, `DASHSCOPE_API_KEY`.
 
 ## Local preview
 
