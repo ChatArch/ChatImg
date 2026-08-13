@@ -22,7 +22,7 @@ ChatImg 是 ChatArch 的图片生成包，承接原 `chattool image` 中已经�
 当前支持：
 
 - `openai` / `crs`：OpenAI-compatible Images API，走 `OPENAI_API_KEY`，请求 `/v1/images/generations`。
-- `codex` / `openai-codex`：ChatGPT/Codex OAuth image bridge，支持 `CODEX_ACCESS_TOKEN` 或 refresh-only 配置，支持 `gpt-image-2-*` preset。
+- `codex` / `openai-codex`：ChatGPT/Codex OAuth image bridge，复用 ChatEnv `OpenAI` profile + runtime token-store，支持 `gpt-image-2-*` preset。
 - `pollinations`：Pollinations.ai image URL generation and model listing。
 - `siliconflow`：SiliconFlow OpenAI-compatible image generation。
 - `huggingface`：Hugging Face Inference image generation。
@@ -50,8 +50,8 @@ chatimg --help
 chatimg --version
 chatimg --tree
 chatimg openai generate "a small red apple icon" -o apple.png
-chatimg codex auth-status
-chatimg codex auth-refresh
+chatimg codex auth-status --profile work
+chatimg codex auth-refresh --profile work
 chatimg codex list-models
 chatimg pollinations list-models
 ```
@@ -60,7 +60,7 @@ chatimg pollinations list-models
 
 ```bash
 chatimg openai generate "a watercolor fox in the snow" --model gpt-image-2-medium --size 1024x1024 -o fox.png
-chatimg codex generate "a watercolor fox in the snow" --aspect-ratio square -o fox-codex.png
+chatimg codex generate "a watercolor fox in the snow" --profile work --aspect-ratio square -o fox-codex.png
 chatimg pollinations generate "a cyberpunk cat" --model flux --width 512 --height 512 -o cat.png
 chatimg siliconflow generate "a cute dog" --size 1024x1024 -o dog.png
 chatimg huggingface generate "A futuristic city at night" -o city.png
@@ -98,25 +98,21 @@ chatimg openai generate \
 
 `codex` provider 走 ChatGPT/Codex OAuth-backed Responses API，请求里的 image tool model 是 `gpt-image-2`。它不是外部 Codex CLI。
 
-常用配置字段：
+`chatimg codex` 现在复用 ChatEnv 的 `OpenAI` profile 和 runtime token-store，不再需要维护单独的 Codex env 文件：
 
-- `CODEX_ACCESS_TOKEN`：Codex OAuth access token。
-- `CODEX_REFRESH_TOKEN`：Codex OAuth refresh token，用于刷新 access token。
-- `CODEX_ACCESS_TOKEN_EXPIRES_AT`：access token 的 UTC ISO 过期时间。
-- `CODEX_OAUTH_BASE_URL`：Codex OAuth auth server base URL，默认 `https://auth.openai.com`。
-- `CODEX_API_BASE`：Codex backend base URL，默认 `https://chatgpt.com/backend-api/codex`。
-- `CODEX_HOST_MODEL`：承载 `image_generation` tool 的 host model，默认 `gpt-5.5`。
-- `CODEX_IMAGE_MODEL`：默认 image preset，默认 `gpt-image-2-medium`。
+- runtime token-store：`~/.chatarch/tokens/OpenAI/<profile>.json`，包含 access/refresh token 等动态状态，并且优先级最高。
+- stable seed：`~/.chatarch/envs/OpenAI/<profile>.env`（`default` profile 使用 active `OpenAI/.env`），只放 OAuth/backend/model seed 或 fallback。
+- 常用 seed 字段：`OPENAI_OAUTH_BASE_URL`、`CHATGPT_BACKEND_BASE_URL`、`OPENAI_API_MODEL`、`OPENAI_IMAGE_MODEL`。
+- 请求地址默认由 `CHATGPT_BACKEND_BASE_URL` 组合为 `${CHATGPT_BACKEND_BASE_URL}/codex/responses`。
+- `openai`/`crs` API-key provider 仍只读取 `OPENAI_API_KEY`，不会 fallback 到 OAuth token。
 
-`codex` provider 不再读取 `~/.hermes/auth.json`，也不再维护 `OPENAI_CODEX_*` 变量。`--timeout` 和 `--aspect-ratio` 是命令级参数，不写入长期 env。
-
-只配置 `CODEX_REFRESH_TOKEN` 也可以启动：`generate` 会自动换取 access token，并把轮换后的 access/refresh token 以 `0600` 权限写回当前 ChatEnv Codex profile。可先显式检查和刷新：
+可以显式指定 OpenAI profile：
 
 ```bash
-chatenv use -t codex lookeng
-chatimg codex auth-status
-chatimg codex auth-refresh
+chatimg codex auth-status --profile work
+chatimg codex auth-refresh --profile work
 chatimg codex generate "a small orange paper airplane" \
+  --profile work \
   --host-model gpt-5.5 \
   --image-model gpt-image-2-low \
   -o generated/codex-image.png
@@ -149,7 +145,7 @@ chatimg codex generate \
 ```python
 from chatimg.image import create_generator
 
-generator = create_generator("codex")
+generator = create_generator("codex", profile="work")
 result = generator.generate("A cute cat astronaut")
 ```
 
@@ -164,7 +160,7 @@ chatimg = "chatimg.config"
 支持的主要环境变量：
 
 - `OPENAI_API_BASE`, `OPENAI_API_KEY`, `OPENAI_IMAGE_MODEL`
-- `CODEX_ACCESS_TOKEN`, `CODEX_REFRESH_TOKEN`, `CODEX_ACCESS_TOKEN_EXPIRES_AT`, `CODEX_OAUTH_BASE_URL`, `CODEX_API_BASE`, `CODEX_HOST_MODEL`, `CODEX_IMAGE_MODEL`
+- `OPENAI_OAUTH_BASE_URL`, `CHATGPT_BACKEND_BASE_URL`, `OPENAI_API_MODEL`, `OPENAI_IMAGE_MODEL` 作为 `OpenAI` profile seed；runtime OAuth tokens 由 `tokens/OpenAI/<profile>.json` 管理
 - `POLLINATIONS_API_KEY`, `POLLINATIONS_MODEL_ID`
 - `SILICONFLOW_API_KEY`, `SILICONFLOW_MODEL_ID`
 - `HUGGINGFACE_HUB_TOKEN`
@@ -184,4 +180,4 @@ python -m twine check dist/*
 
 ## 发布状态
 
-PyPI `ChatImg` 从 `0.1.x` 开始发布功能版本；`0.1.4` 增加 refresh-only 自动刷新/持久化、OAuth 状态 CLI，并补齐 CRS API-key 图片验收用法。
+PyPI `ChatImg` 从 `0.1.x` 开始发布功能版本；`0.1.5` 将 `chatimg codex` 切到 ChatEnv `OpenAI` profile + `tokens/OpenAI/<profile>.json` token-store，并补齐 `--profile`。

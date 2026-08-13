@@ -12,3 +12,24 @@ def test_mkdocs_uses_chatarch_public_domain_i18n_and_material_icon_renderer():
     assert "material.extensions.emoji.to_svg" in config
     assert "cli-tree.md" in config
     assert "ChatImg/en/" in config
+
+
+def test_public_docs_use_portable_openai_profile_examples():
+    public_docs = [
+        Path("README.md"),
+        Path("README.en.md"),
+        Path("docs/index.md"),
+        Path("docs/index.en.md"),
+    ]
+    text = "\n".join(path.read_text(encoding="utf-8") for path in public_docs)
+
+    assert "--profile work" in text
+    assert "73-wzh" not in text
+    assert "/Users/rexwzh" not in text
+    assert "/home/zhihong" not in text
+    assert "chatenv use -t codex" not in text
+    assert "envs/Codex/.env" not in text
+    assert "CODEX_ACCESS_TOKEN" not in text
+    assert "CODEX_REFRESH_TOKEN" not in text
+    assert "CODEX_API_BASE" not in text
+    assert "CODEX_OAUTH_BASE_URL" not in text

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.5 - 2026-08-13
+
+### Changed
+
+- Move `chatimg codex` to the shared ChatEnv `OpenAI` profile lifecycle: runtime OAuth tokens are read from `tokens/OpenAI/<profile>.json`, and `envs/OpenAI/<profile>.env` is only the stable seed/fallback for OAuth/backend/model settings.
+- Add `--profile` to `chatimg codex auth-status`, `auth-refresh`, `generate`, and `list-models`; token-store values take precedence over OpenAI env seed values.
+- Remove the first-class `CodexConfig` ChatEnv namespace so users no longer maintain a separate `envs/Codex/.env` for ChatImg Codex image generation.
+- Require `chatenv>=0.2.7` for token-store and token refresher compatibility.
+
+### Verification
+
+- Added regression tests for OpenAI profile token-store precedence, refresh persistence to `tokens/OpenAI/<profile>.json`, CLI `--profile`, and ignoring legacy `envs/Codex/.env`.
+- Re-read the real `chatimg --tree` output and synchronized README/docs.
+
 ## 0.1.4 - 2026-07-31
 
 ### Added
@@ -19,7 +33,7 @@
 
 ### Verification
 
-- CRS API key bound to a debug `73-wzh` account passed `/responses` and generated a real `gpt-image-2` PNG through `chatimg openai generate`.
+- CRS API key bound to a debug account passed `/responses` and generated a real `gpt-image-2` PNG through `chatimg openai generate`.
 - Unit, syntax, CLI, and documentation gates cover the separate OAuth and API-key paths.
 
 ## 0.1.3 - 2026-07-07

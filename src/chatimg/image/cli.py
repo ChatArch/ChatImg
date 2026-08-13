@@ -423,13 +423,16 @@ def codex():
 
 
 @codex.command(name="auth-status")
-def codex_auth_status():
-    """Show safe Codex OAuth profile status without token values."""
+@click.option("--profile", default="default", show_default=True, help="OpenAI ChatEnv profile name.")
+def codex_auth_status(profile):
+    """Show safe OpenAI OAuth profile status without token values."""
     try:
         from chatimg.image.codex import CodexImageGenerator
 
-        generator = CodexImageGenerator()
-        click.echo(f"Codex env file: {generator.active_env_path}")
+        generator = CodexImageGenerator(profile=profile)
+        click.echo(f"OpenAI profile: {generator.profile}")
+        click.echo(f"OpenAI env file: {generator.active_env_path}")
+        click.echo(f"OpenAI token store: {generator.token_store_path}")
         click.echo(f"Access token: {'present' if generator.access_token else 'missing'}")
         click.echo(f"Refresh token: {'present' if generator.refresh_token else 'missing'}")
         click.echo(
@@ -443,18 +446,18 @@ def codex_auth_status():
 
 
 @codex.command(name="auth-refresh")
-def codex_auth_refresh():
-    """Refresh Codex OAuth tokens and persist the active ChatEnv profile."""
+@click.option("--profile", default="default", show_default=True, help="OpenAI ChatEnv profile name.")
+def codex_auth_refresh(profile):
+    """Refresh OpenAI OAuth tokens and persist the runtime token store."""
     try:
         from chatimg.image.codex import CodexImageGenerator
 
-        generator = CodexImageGenerator()
-        if not generator.persist_refreshed_tokens:
-            raise ValueError(
-                f"Active Codex ChatEnv profile not found: {generator.active_env_path}"
-            )
+        generator = CodexImageGenerator(profile=profile)
         generator.refresh_access_token()
-        click.echo(f"Codex OAuth tokens refreshed and saved to {generator.active_env_path}")
+        click.echo(
+            "OpenAI OAuth tokens refreshed and saved to "
+            f"{generator.token_store_path}"
+        )
         click.echo(
             "Access token expires at: "
             f"{generator.access_token_expires_at or 'unknown'}"
@@ -561,6 +564,7 @@ def siliconflow_list_models():
     "--base-url",
     help="Override the Codex backend base URL. The OAuth token is sent to this host.",
 )
+@click.option("--profile", default="default", show_default=True, help="OpenAI ChatEnv profile name.")
 @click.option(
     "--timeout",
     type=float,
@@ -578,6 +582,7 @@ def codex_generate(
     image_model,
     host_model,
     base_url,
+    profile,
     timeout,
     output,
     interactive,
@@ -599,6 +604,7 @@ def codex_generate(
             image_model=image_model,
             aspect_ratio=aspect_ratio,
             timeout_seconds=timeout,
+            profile=profile,
         )
         click.echo(
             "Generating image with Codex "
@@ -618,10 +624,11 @@ def codex_generate(
 
 
 @codex.command(name="list-models")
-def codex_list_models():
+@click.option("--profile", default="default", show_default=True, help="OpenAI ChatEnv profile name.")
+def codex_list_models(profile):
     """List built-in Codex image model presets."""
     try:
-        generator = create_generator("codex")
+        generator = create_generator("codex", profile=profile)
         models = generator.get_models()
         echo_model_list(models, "Available image models for Codex:")
     except Exception as e:
