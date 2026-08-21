@@ -18,12 +18,15 @@ ChatImg 是 ChatArch 的图片生成包，承接原 `chattool image` 中已经�
 chatimg --help
 chatimg --version
 chatimg --tree
+chatimg --tree-brief
 chatimg openai generate "a small red apple icon" -o apple.png
 chatimg codex auth-status --profile work
 chatimg codex auth-refresh --profile work
 chatimg codex list-models
 chatimg pollinations list-models
 ```
+
+`chatimg --tree` 默认显示参数签名；`chatimg --tree-brief` 保留命令节点和描述，但省略参数签名。两种输出都以公开 CLI 名 `chatimg` 作为根节点。
 
 生成示例：
 

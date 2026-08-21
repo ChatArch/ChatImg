@@ -17,12 +17,15 @@ ChatImg is the ChatArch image-generation package. It carries the provider implem
 chatimg --help
 chatimg --version
 chatimg --tree
+chatimg --tree-brief
 chatimg openai generate "a small red apple icon" -o apple.png
 chatimg codex auth-status --profile work
 chatimg codex auth-refresh --profile work
 chatimg codex list-models
 chatimg pollinations list-models
 ```
+
+`chatimg --tree` includes parameter signatures by default. `chatimg --tree-brief` keeps command nodes and descriptions while omitting signatures. Both views use the public CLI name `chatimg` as the root.
 
 Generation examples:
 

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.6 - 2026-08-21
+
+### Changed
+
+- Migrate the top-level Click tree from ChatImg's local renderer to ChatStyle `add_tree_option()`, with `chatimg` fixed as the canonical public root.
+- Keep parameter signatures in `chatimg --tree` and add `chatimg --tree-brief` for command-and-description-only output.
+- Require `chatstyle>=0.2.0,<0.3.0` and `chatenv>=0.2.9,<0.3.0`.
+
+### Verification
+
+- Add regression coverage for the canonical root, default signatures, brief output, command nodes, and descriptions.
+- Synchronize the bilingual README, documentation, and development guidance with the shared tree runtime.
+
 ## 0.1.5 - 2026-08-13
 
 ### Changed

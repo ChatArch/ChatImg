@@ -49,12 +49,15 @@ pip install -e ".[images]"
 chatimg --help
 chatimg --version
 chatimg --tree
+chatimg --tree-brief
 chatimg openai generate "a small red apple icon" -o apple.png
 chatimg codex auth-status --profile work
 chatimg codex auth-refresh --profile work
 chatimg codex list-models
 chatimg pollinations list-models
 ```
+
+`chatimg --tree` 默认显示参数签名；`chatimg --tree-brief` 保留命令节点和描述，但省略参数签名。两种输出都由 ChatStyle 的共享 Click tree runtime 生成，并以公开 CLI 名 `chatimg` 作为根节点。
 
 生成示例：
 
@@ -171,13 +174,14 @@ chatimg = "chatimg.config"
 
 ```bash
 PYTHONPATH=src python -m pytest -q
-PYTHONPATH=src python -m chatimg.cli --help
-PYTHONPATH=src python -m chatimg.cli --tree
-PYTHONPATH=src python -m chatimg.cli codex list-models
+PYTHONPATH=src python -m chatimg.image.cli --help
+PYTHONPATH=src python -m chatimg.image.cli --tree
+PYTHONPATH=src python -m chatimg.image.cli --tree-brief
+PYTHONPATH=src python -m chatimg.image.cli codex list-models
 python -m build
 python -m twine check dist/*
 ```
 
 ## 发布状态
 
-PyPI `ChatImg` 从 `0.1.x` 开始发布功能版本；`0.1.5` 将 `chatimg codex` 切到 ChatEnv `OpenAI` profile + `tokens/OpenAI/<profile>.json` token-store，并补齐 `--profile`。
+PyPI `ChatImg` 从 `0.1.x` 开始发布功能版本；`0.1.6` 将顶层 CLI tree 迁移到 ChatStyle 共享 runtime，默认树保留参数签名，并新增 `--tree-brief`。
