@@ -2,8 +2,9 @@
 
 ## CLI Rules
 
-- Use `chatstyle>=0.1.0,<0.2.0` and `chatenv>=0.2.2,<0.3.0` as the canonical CLI interaction runtime.
-- Prefer `CommandSchema`, `CommandField`, `add_interactive_option()`, and `resolve_command_inputs()` for new commands.
+- Use `chatstyle>=0.2.0,<0.3.0` and `chatenv>=0.2.9,<0.3.0` as the canonical CLI interaction runtime.
+- Prefer `CommandSchema`, `CommandField`, `add_interactive_option()`, `add_tree_option()`, and `resolve_command_inputs()` for new commands.
+- Keep `chatimg --tree` signature-rich and use `chatimg --tree-brief` for the command-and-description-only view.
 - Missing required args should auto-enter interactive mode when recoverable.
 - `-i` forces interactive mode; `-I` disables prompting and must fail fast.
 - Prompt defaults must match actual execution defaults.

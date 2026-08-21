@@ -4,6 +4,7 @@ from chatstyle import (
     CommandField,
     CommandSchema,
     add_interactive_option,
+    add_tree_option,
     resolve_command_inputs,
 )
 from chatimg.image import create_generator
@@ -29,127 +30,9 @@ HF_GENERATE_SCHEMA = CommandSchema(
 )
 
 
-def _short_help(command):
-    """Return the first help sentence for a Click command."""
-
-    help_text = (command.short_help or command.help or "").strip()
-    if not help_text:
-        return ""
-    return help_text.splitlines()[0].strip()
-
-
-def _format_argument(argument):
-    metavar = (argument.metavar or argument.name or "ARG").upper().replace("_", "-")
-    if argument.nargs != 1:
-        metavar = f"{metavar}..."
-    if argument.required:
-        return metavar
-    return f"[{metavar}]"
-
-
-def _format_option(option):
-    visible = [flag for flag in option.opts if flag.startswith("--")]
-    visible.extend(flag for flag in option.opts if flag not in visible)
-    if not visible:
-        return ""
-    flag = visible[0]
-    if option.is_flag or option.flag_value is not None:
-        return f"[{flag}]"
-    metavar = (option.metavar or option.name or "VALUE").upper().replace("_", "-")
-    return f"[{flag} {metavar}]"
-
-
-def _format_signature(command):
-    parts = []
-    for param in command.params:
-        if getattr(param, "hidden", False):
-            continue
-        if isinstance(param, click.Argument):
-            parts.append(_format_argument(param))
-        elif isinstance(param, click.Option):
-            if param.name in {"help", "version", "tree"}:
-                continue
-            item = _format_option(param)
-            if item:
-                parts.append(item)
-    return " " + " ".join(parts) if parts else ""
-
-
-def _click_group_children(command):
-    if not isinstance(command, click.Group):
-        return []
-    ctx = click.Context(command, info_name=command.name)
-    return [(name, command.get_command(ctx, name)) for name in command.list_commands(ctx)]
-
-
-def _tree_command_line(command, path):
-    line = f"{path}{_format_signature(command)}"
-    help_text = _short_help(command)
-    if help_text:
-        line = f"{line} # {help_text}"
-    return line
-
-
-def _render_click_command(command, path, prefix="", is_last=True):
-    connector = "└── " if is_last else "├── "
-    lines = [f"{prefix}{connector}{_tree_command_line(command, path)}"]
-    children = [(name, child) for name, child in _click_group_children(command) if child]
-    child_prefix = prefix + ("    " if is_last else "│   ")
-    for index, (name, child) in enumerate(children):
-        child_path = f"{path} {name}"
-        lines.extend(
-            _render_click_command(
-                child,
-                child_path,
-                prefix=child_prefix,
-                is_last=index == len(children) - 1,
-            )
-        )
-    return lines
-
-
-def render_cli_tree(command):
-    """Render the real registered Click command tree."""
-
-    root_name = command.name or "chatimg"
-    lines = [_tree_command_line(command, root_name)]
-    root_entries = [
-        ("--help", "Show this message and exit."),
-        ("--version", "Show the version and exit."),
-        ("--tree", "Print the registered command tree."),
-    ]
-    children = [(name, child) for name, child in _click_group_children(command) if child]
-    entries = [("pseudo", option, help_text) for option, help_text in root_entries] + [
-        ("command", name, child) for name, child in children
-    ]
-    for index, entry in enumerate(entries):
-        is_last = index == len(entries) - 1
-        connector = "└── " if is_last else "├── "
-        if entry[0] == "pseudo":
-            lines.append(f"{connector}{entry[1]} # {entry[2]}")
-        else:
-            _, name, child = entry
-            lines.extend(_render_click_command(child, name, is_last=is_last))
-    return "\n".join(lines)
-
-
-def _print_cli_tree(ctx, param, value):
-    if not value or ctx.resilient_parsing:
-        return None
-    click.echo(render_cli_tree(ctx.command))
-    ctx.exit()
-
-
 @click.group(name="chatimg")
 @click.version_option(__version__, prog_name="chatimg")
-@click.option(
-    "--tree",
-    is_flag=True,
-    is_eager=True,
-    expose_value=False,
-    callback=_print_cli_tree,
-    help="Print the registered command tree.",
-)
+@add_tree_option(renderer_options={"root_name": "chatimg"})
 def main() -> None:
     """ChatImg image generation tools."""
     pass

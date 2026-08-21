@@ -49,12 +49,15 @@ pip install -e ".[images]"
 chatimg --help
 chatimg --version
 chatimg --tree
+chatimg --tree-brief
 chatimg openai generate "a small red apple icon" -o apple.png
 chatimg codex auth-status --profile work
 chatimg codex auth-refresh --profile work
 chatimg codex list-models
 chatimg pollinations list-models
 ```
+
+`chatimg --tree` includes parameter signatures by default. `chatimg --tree-brief` keeps command nodes and descriptions while omitting signatures. Both views come from ChatStyle's shared Click tree runtime and use the public CLI name `chatimg` as the root.
 
 Generation examples:
 
@@ -171,13 +174,14 @@ Main supported environment variables:
 
 ```bash
 PYTHONPATH=src python -m pytest -q
-PYTHONPATH=src python -m chatimg.cli --help
-PYTHONPATH=src python -m chatimg.cli --tree
-PYTHONPATH=src python -m chatimg.cli codex list-models
+PYTHONPATH=src python -m chatimg.image.cli --help
+PYTHONPATH=src python -m chatimg.image.cli --tree
+PYTHONPATH=src python -m chatimg.image.cli --tree-brief
+PYTHONPATH=src python -m chatimg.image.cli codex list-models
 python -m build
 python -m twine check dist/*
 ```
 
 ## Release state
 
-PyPI `ChatImg` publishes functional releases on the `0.1.x` line; `0.1.5` moves `chatimg codex` to ChatEnv `OpenAI` profiles plus the `tokens/OpenAI/<profile>.json` token-store and adds `--profile`.
+PyPI `ChatImg` publishes functional releases on the `0.1.x` line; `0.1.6` moves the top-level CLI tree to ChatStyle's shared runtime, keeps signatures in the default tree, and adds `--tree-brief`.
