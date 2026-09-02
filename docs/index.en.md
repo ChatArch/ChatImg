@@ -1,5 +1,9 @@
 # ChatImg Documentation
 
+<p align="center">
+  <img src="assets/chatimg-logo.png" alt="ChatImg logo" width="120" />
+</p>
+
 ChatImg is the ChatArch image-generation package. It carries the provider implementations previously exposed by the decoupled `chattool image` surface.
 
 ## Providers

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.7 - 2026-09-02
+
+### Added
+
+- Add the generated ChatImg logo asset to README and documentation surfaces.
+
+### Verification
+
+- Keep the logo as a local repository asset with no text, watermark, URL, or secret-like content.
+- Re-run source tests, strict MkDocs, package build, Twine checks, and clean-install CLI readback.
+
 ## 0.1.6 - 2026-08-21
 
 ### Changed

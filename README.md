@@ -1,4 +1,8 @@
 <div align="center">
+    <img src="https://raw.githubusercontent.com/ChatArch/ChatImg/main/docs/assets/chatimg-logo.png" alt="ChatImg logo" width="120" />
+</div>
+
+<div align="center">
     <a href="https://pypi.python.org/pypi/ChatImg">
         <img src="https://img.shields.io/pypi/v/ChatImg.svg" alt="PyPI version" />
     </a>
