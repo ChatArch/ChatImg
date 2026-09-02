@@ -1,5 +1,9 @@
 # ChatImg 文档
 
+<p align="center">
+  <img src="assets/chatimg-logo.png" alt="ChatImg logo" width="120" />
+</p>
+
 ChatImg 是 ChatArch 的图片生成包，承接原 `chattool image` 中已经解耦的 provider 实现。
 
 ## 支持的 provider

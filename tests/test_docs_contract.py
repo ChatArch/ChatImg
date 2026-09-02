@@ -33,3 +33,13 @@ def test_public_docs_use_portable_openai_profile_examples():
     assert "CODEX_REFRESH_TOKEN" not in text
     assert "CODEX_API_BASE" not in text
     assert "CODEX_OAUTH_BASE_URL" not in text
+
+
+def test_logo_asset_is_documented_and_local():
+    logo = Path("docs/assets/chatimg-logo.png")
+    assert logo.exists()
+    assert logo.stat().st_size > 1000
+
+    for path in [Path("README.md"), Path("README.en.md"), Path("docs/index.md"), Path("docs/index.en.md")]:
+        text = path.read_text(encoding="utf-8")
+        assert "chatimg-logo.png" in text
