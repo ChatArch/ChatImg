@@ -25,7 +25,7 @@ ChatImg 是 ChatArch 的图片生成包，承接原 `chattool image` 中已经�
 
 当前支持：
 
-- `openai` / `crs`：OpenAI-compatible Images API，走 `OPENAI_API_KEY`，请求 `/v1/images/generations`。
+- `openai` / `crs`：OpenAI-compatible API-key 生图，兼容默认 Images，并支持显式 Responses 模式。
 - `codex` / `openai-codex`：ChatGPT/Codex OAuth image bridge，复用 ChatEnv `OpenAI` profile + runtime token-store，支持 `gpt-image-2-*` preset。
 - `pollinations`：Pollinations.ai image URL generation and model listing。
 - `siliconflow`：SiliconFlow OpenAI-compatible image generation。
@@ -75,9 +75,11 @@ chatimg liblib generate "A cute dog" --model-id liblib-sdxl-model -o dog.png
 chatimg tongyi generate "一只赛博朋克猫" --size "1024*1024" -o cat.png
 ```
 
-### OpenAI-compatible / CRS Images API
+### OpenAI-compatible / CRS API-key 生图
 
 `openai` provider 对齐 OpenAI 官方 Images API：`POST {OPENAI_API_BASE}/images/generations`。官方 base 是 `https://api.openai.com/v1`，因此完整官方接口是 `https://api.openai.com/v1/images/generations`。CRS 兼容服务可用自己的带 `/v1` base，例如 `https://crs.example/openai/v1`。
+
+Images 保持兼容默认。若 CRS bridge 通过 `/responses` 返回最终图片，请显式使用 `--api-mode responses`。carrier `--host-model`（默认 `gpt-5.5`，也可来自 `OPENAI_API_MODEL`）与 image `--model` 独立。未指定 `--profile` 时，优先级为显式参数、进程环境、active ChatEnv profile、默认值；指定后只加载该 OpenAI profile，不激活，也不跨账号 fallback，显式参数仍优先。API mode 的顺序为显式参数、进程环境、active ChatImg profile、`images`。此 API-key 路径不读取 OAuth token 文件，也不会自动重试。Responses 会转发 `background`，未知 Python 扩展参数会在 HTTP 前被拒绝。
 
 常用配置字段：
 
@@ -95,6 +97,9 @@ CRS 验收建议分两步：先用同一个 API key 调普通 `/responses` 模�
 ```bash
 chatimg openai generate \
   "A simple orange paper airplane over a pale blue grid, no text" \
+  --api-mode responses \
+  --profile work \
+  --host-model gpt-5.5 \
   --model gpt-image-2-low \
   --quality low \
   --size 1024x1024 \

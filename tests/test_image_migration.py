@@ -34,17 +34,13 @@ def test_factory_exposes_chatimg_image_providers():
         assert isinstance(generator, ImageGenerator)
 
 
-def test_openai_compatible_generator_uses_chat_env_config_and_returns_png(monkeypatch):
+def test_openai_compatible_generator_uses_active_chatenv_store_and_returns_png(monkeypatch, tmp_path):
     import base64
 
+    from chatenv import EnvStore, get_paths
     from chatimg.config import OpenAIConfig
     from chatimg.image.openai_compatible import OpenAICompatibleImageGenerator
 
-    original = {
-        "OPENAI_API_BASE": OpenAIConfig.OPENAI_API_BASE.value,
-        "OPENAI_API_KEY": OpenAIConfig.OPENAI_API_KEY.value,
-        "OPENAI_IMAGE_MODEL": OpenAIConfig.OPENAI_IMAGE_MODEL.value,
-    }
     captured = {}
 
     class Response:
@@ -61,15 +57,16 @@ def test_openai_compatible_generator_uses_chat_env_config_and_returns_png(monkey
         return Response()
 
     monkeypatch.setattr("requests.post", fake_post)
-    try:
-        OpenAIConfig.OPENAI_API_BASE.value = "https://crs.example.test/openai/v1"
-        OpenAIConfig.OPENAI_API_KEY.value = "crs-key"
-        OpenAIConfig.OPENAI_IMAGE_MODEL.value = "gpt-image-2-medium"
-        generator = OpenAICompatibleImageGenerator(timeout_seconds=123)
-        result = generator.generate("a fox", size="1024x1024")
-    finally:
-        for key, value in original.items():
-            getattr(OpenAIConfig, key).value = value
+    monkeypatch.setenv("CHATARCH_HOME", str(tmp_path))
+    for name in ("OPENAI_API_BASE", "OPENAI_API_KEY", "OPENAI_IMAGE_MODEL"):
+        monkeypatch.delenv(name, raising=False)
+    EnvStore(get_paths().envs_dir).save_active(OpenAIConfig, {
+        "OPENAI_API_BASE": "https://crs.example.test/openai/v1",
+        "OPENAI_API_KEY": "crs-key",
+        "OPENAI_IMAGE_MODEL": "gpt-image-2-medium",
+    })
+    generator = OpenAICompatibleImageGenerator(timeout_seconds=123)
+    result = generator.generate("a fox", size="1024x1024")
 
     assert result == b"fake-png"
     assert captured["url"] == "https://crs.example.test/openai/v1/images/generations"
@@ -112,15 +109,9 @@ def test_openai_compatible_generator_does_not_fallback_to_oauth_token(monkeypatc
             getattr(OpenAIConfig, key).value = value
 
 
-def test_openai_compatible_generator_prefers_api_key_over_oauth_token(monkeypatch):
-    from chatimg.config import OpenAIConfig
+def test_openai_compatible_generator_prefers_explicit_api_key_over_oauth_token(monkeypatch, tmp_path):
     from chatimg.image.openai_compatible import OpenAICompatibleImageGenerator
 
-    original = {
-        "OPENAI_API_BASE": OpenAIConfig.OPENAI_API_BASE.value,
-        "OPENAI_API_KEY": OpenAIConfig.OPENAI_API_KEY.value,
-        "OPENAI_ACCESS_TOKEN": OpenAIConfig.OPENAI_ACCESS_TOKEN.value,
-    }
     captured = {}
 
     class Response:
@@ -134,16 +125,12 @@ def test_openai_compatible_generator_prefers_api_key_over_oauth_token(monkeypatc
         return Response()
 
     monkeypatch.setattr("requests.post", fake_post)
-    try:
-        OpenAIConfig.OPENAI_API_BASE.value = "https://crs.example.test/openai/v1"
-        OpenAIConfig.OPENAI_API_KEY.value = "api-key"
-        OpenAIConfig.OPENAI_ACCESS_TOKEN.value = "oauth-access-token"
-        monkeypatch.setenv("OPENAI_ACCESS_TOKEN", "env-oauth-access-token")
-
-        OpenAICompatibleImageGenerator().generate("a fox")
-    finally:
-        for key, value in original.items():
-            getattr(OpenAIConfig, key).value = value
+    monkeypatch.setenv("CHATARCH_HOME", str(tmp_path))
+    monkeypatch.setenv("OPENAI_ACCESS_TOKEN", "env-oauth-access-token")
+    OpenAICompatibleImageGenerator(
+        api_key="api-key",
+        api_base="https://crs.example.test/openai/v1",
+    ).generate("a fox")
 
     assert captured["headers"]["Authorization"] == "Bearer api-key"
 

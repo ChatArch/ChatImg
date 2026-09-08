@@ -43,3 +43,15 @@ def test_logo_asset_is_documented_and_local():
     for path in [Path("README.md"), Path("README.en.md"), Path("docs/index.md"), Path("docs/index.en.md")]:
         text = path.read_text(encoding="utf-8")
         assert "chatimg-logo.png" in text
+
+
+def test_responses_cli_contract_is_in_bilingual_docs():
+    paths = [Path("README.md"), Path("README.en.md"), Path("docs/index.md"), Path("docs/index.en.md")]
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        assert "--api-mode responses" in text
+        assert "--host-model gpt-5.5" in text
+        assert "--profile work" in text
+    for path in [Path("docs/cli-tree.md"), Path("docs/cli-tree.en.md")]:
+        text = path.read_text(encoding="utf-8")
+        assert "[--api-mode API-MODE] [--profile PROFILE] [--host-model HOST-MODEL]" in text

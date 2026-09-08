@@ -11,6 +11,12 @@ class ChatImgConfig(BaseEnvConfig):
     _aliases = ["chatimg", "image"]
     _storage_dir = "ChatImg"
 
+    CHATIMG_OPENAI_API_MODE = EnvField(
+        "CHATIMG_OPENAI_API_MODE",
+        default="images",
+        desc="OpenAI API-key image transport: images or responses.",
+    )
+
     DASHSCOPE_API_KEY = EnvField(
         "DASHSCOPE_API_KEY",
         desc="Aliyun DashScope API key for Tongyi Wanxiang.",

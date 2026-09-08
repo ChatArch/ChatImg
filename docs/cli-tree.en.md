@@ -1,6 +1,6 @@
 # CLI Tree
 
-ChatImg `0.1.6` uses ChatStyle's shared Click tree runtime to render the real registered command surface. The module entry point and console script both use the public CLI name `chatimg` as the canonical root.
+ChatImg `0.1.8` uses ChatStyle's shared Click tree runtime to render the real registered command surface. The module entry point and console script both use the public CLI name `chatimg` as the canonical root.
 
 ## Default tree
 
@@ -22,8 +22,8 @@ chatimg
 ├── liblib  # LiblibAI tools.
 │   ├── generate [PROMPT] [--model-id MODEL-ID] [--output OUTPUT] [--interactive]  # Generate an image using LiblibAI.
 │   └── list-models  # List available models for LiblibAI.
-├── openai  # OpenAI-compatible Images API tools, including CRS proxy.
-│   └── generate [PROMPT] [--model IMAGE-MODEL] [--size SIZE] [--quality QUALITY] [--api-base API-BASE] [--timeout TIMEOUT] [--output OUTPUT] [--interactive]  # Generate an image using OpenAI-compatible Images API.
+├── openai  # OpenAI-compatible API-key image tools, including CRS.
+│   └── generate [PROMPT] [--model IMAGE-MODEL] [--size SIZE] [--quality QUALITY] [--api-base API-BASE] [--api-mode API-MODE] [--profile PROFILE] [--host-model HOST-MODEL] [--timeout TIMEOUT] [--output OUTPUT] [--interactive]  # Generate an image using an OpenAI-compatible API key.
 ├── pollinations  # Pollinations.ai tools.
 │   ├── generate [PROMPT] [--model MODEL] [--width WIDTH] [--height HEIGHT] [--output OUTPUT] [--interactive]  # Generate an image using Pollinations.ai.
 │   └── list-models  # List available image models for Pollinations.ai.
@@ -54,8 +54,8 @@ chatimg
 ├── liblib  # LiblibAI tools.
 │   ├── generate  # Generate an image using LiblibAI.
 │   └── list-models  # List available models for LiblibAI.
-├── openai  # OpenAI-compatible Images API tools, including CRS proxy.
-│   └── generate  # Generate an image using OpenAI-compatible Images API.
+├── openai  # OpenAI-compatible API-key image tools, including CRS.
+│   └── generate  # Generate an image using an OpenAI-compatible API key.
 ├── pollinations  # Pollinations.ai tools.
 │   ├── generate  # Generate an image using Pollinations.ai.
 │   └── list-models  # List available image models for Pollinations.ai.
@@ -71,4 +71,4 @@ chatimg
 - `hello` is not a ChatImg business interface and must not appear in the public CLI tree.
 - `codex` is the ChatGPT/Codex OAuth-backed image bridge, not the external Codex CLI.
 - `codex` reads the ChatEnv `OpenAI` profile: runtime token-store `tokens/OpenAI/<profile>.json` wins, and `envs/OpenAI/<profile>.env` is only the seed/fallback.
-- `openai` / `crs` use the OpenAI-compatible Images API and `OPENAI_API_KEY`; they do not fall back to OAuth tokens.
+- `openai` / `crs` use `OPENAI_API_KEY`; Images is the default and Responses is explicit. Named profiles are isolated and never fall back to OAuth tokens.

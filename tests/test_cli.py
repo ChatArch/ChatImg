@@ -50,6 +50,7 @@ def test_tree_option_renders_signatures_registered_commands_and_canonical_root()
         "generate [PROMPT] [--style STYLE]",
     ):
         assert signature in result.output
+    assert "[--api-mode API-MODE] [--profile PROFILE] [--host-model HOST-MODEL]" in result.output
     assert "hello" not in result.output.lower()
 
 

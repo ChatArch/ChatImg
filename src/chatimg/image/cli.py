@@ -252,7 +252,7 @@ def siliconflow():
 
 @main.group()
 def openai():
-    """OpenAI-compatible Images API tools, including CRS proxy."""
+    """OpenAI-compatible API-key image tools, including CRS."""
     pass
 
 
@@ -262,6 +262,9 @@ def openai():
 @click.option("--size", default="1024x1024", show_default=True, help="Image size.")
 @click.option("--quality", type=click.Choice(["low", "medium", "high", "auto"]), help="Image quality.")
 @click.option("--api-base", help="Override OPENAI_API_BASE, usually ending with /v1.")
+@click.option("--api-mode", type=click.Choice(["images", "responses"]), help="API transport (default: configured images mode).")
+@click.option("--profile", help="Named ChatEnv OpenAI API-key profile; does not activate it.")
+@click.option("--host-model", help="Responses carrier model, independent of --model.")
 @click.option("--timeout", type=float, help="Request timeout in seconds.")
 @click.option(
     "--output",
@@ -269,8 +272,8 @@ def openai():
     help="Optional output file path. Defaults to ./generated/image_openai_<model>_<timestamp>.png",
 )
 @add_interactive_option
-def openai_generate(prompt, image_model, size, quality, api_base, timeout, output, interactive):
-    """Generate an image using OpenAI-compatible Images API."""
+def openai_generate(prompt, image_model, size, quality, api_base, api_mode, profile, host_model, timeout, output, interactive):
+    """Generate an image using an OpenAI-compatible API key."""
     inputs = resolve_command_inputs(
         schema=PROMPT_SCHEMA,
         provided={"prompt": prompt},
@@ -285,8 +288,12 @@ def openai_generate(prompt, image_model, size, quality, api_base, timeout, outpu
             api_base=api_base,
             image_model=image_model,
             timeout_seconds=timeout,
+            api_mode=api_mode,
+            profile=profile,
+            host_model=host_model,
         )
-        click.echo(f"Generating image with OpenAI-compatible API (image: {generator.image_model})...")
+        mode = getattr(generator, "api_mode", api_mode or "images")
+        click.echo(f"Generating image with OpenAI-compatible {mode} API (image: {generator.image_model})...")
         result = generator.generate(prompt, size=size, quality=quality)
         output_path = resolve_generated_output_path(
             output,

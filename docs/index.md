@@ -40,9 +40,11 @@ chatimg codex generate "a watercolor fox in the snow" --profile work --aspect-ra
 chatimg pollinations generate "a cyberpunk cat" --model flux --width 512 --height 512 -o cat.png
 ```
 
-### OpenAI-compatible / CRS Images API
+### OpenAI-compatible / CRS API-key 生图
 
 `openai` provider 对齐 OpenAI 官方 Images API：`POST {OPENAI_API_BASE}/images/generations`。官方 base 是 `https://api.openai.com/v1`，完整接口是 `https://api.openai.com/v1/images/generations`。
+
+Images 保持默认。CRS Responses bridge 使用 `--api-mode responses`；carrier `--host-model`（默认 `gpt-5.5`，或读取 `OPENAI_API_MODEL`）与 image `--model` 独立。未指定 `--profile` 时按显式参数、进程环境、active ChatEnv profile、默认值取值；命名 profile 相互隔离。API mode 按显式参数、进程环境、active ChatImg profile、`images` 取值。该路径不读取 OAuth token 文件，也不自动重试；不支持的 Responses 参数会在 HTTP 前报错。
 
 ```bash
 chatenv use -t oai apple
@@ -53,6 +55,7 @@ CRS API-key 验收应先用同一个 key 调普通 Responses 模型，再调 Ima
 
 ```bash
 chatimg openai generate \
+  --api-mode responses --profile work --host-model gpt-5.5 \
   "A simple orange paper airplane over a pale blue grid, no text" \
   --model gpt-image-2-low \
   --quality low \
