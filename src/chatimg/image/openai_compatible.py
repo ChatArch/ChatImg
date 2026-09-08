@@ -1,56 +1,60 @@
 import base64
+import binascii
+import json
 import os
-from pathlib import Path
 from typing import Any, Optional
 
 import requests
+from chatenv import EnvStore, get_paths
 from chatenv.configs import OpenAIConfig
+
+from chatimg.config import ChatImgConfig
 
 from .base import ImageGenerator
 
-
-def _strip_env_quotes(value: str) -> str:
-    value = value.strip()
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-        return value[1:-1]
-    return value
+DEFAULT_HOST_MODEL = "gpt-5.5"
 
 
-def _load_active_openai_env() -> dict[str, str]:
-    chatarch_home = Path(os.environ.get("CHATARCH_HOME") or Path.home() / ".chatarch")
-    active_path = chatarch_home / "envs" / "OpenAI" / ".env"
-    if not active_path.exists():
-        return {}
-
-    values: dict[str, str] = {}
-    for raw_line in active_path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        key = key.strip()
-        if key in {"OPENAI_API_KEY", "OPENAI_API_BASE", "OPENAI_IMAGE_MODEL"}:
-            values[key] = _strip_env_quotes(value)
-    return values
+def _load_openai_env(profile: str | None = None) -> dict[str, str]:
+    store = EnvStore(get_paths().envs_dir)
+    if profile is None:
+        values = store.load_active(OpenAIConfig)
+    else:
+        try:
+            values = store.load_profile(OpenAIConfig, profile)
+        except FileNotFoundError as exc:
+            raise ValueError(f"OpenAI profile not found: {profile}") from exc
+    return {str(key): str(value) for key, value in values.items() if value is not None}
 
 
-def _normalize_image_model(model: str | None) -> tuple[str, str | None]:
-    active_env = _load_active_openai_env()
-    value = (
-        model
-        or active_env.get("OPENAI_IMAGE_MODEL")
-        or OpenAIConfig.OPENAI_IMAGE_MODEL.value
-        or os.environ.get("OPENAI_IMAGE_MODEL")
-        or "gpt-image-2"
-    ).strip()
+def _normalize_image_model(model: str | None, profile_values: dict[str, str]) -> tuple[str, str | None]:
+    value = (model or profile_values.get("OPENAI_IMAGE_MODEL") or "gpt-image-2").strip()
     for suffix in ("-low", "-medium", "-high"):
         if value.endswith(suffix):
             return value[: -len(suffix)], suffix.removeprefix("-")
     return value, None
 
 
+def _final_image_item(item: Any) -> tuple[str, str] | None:
+    if not isinstance(item, dict):
+        return None
+    if item.get("type") != "image_generation_call" or item.get("status") != "completed":
+        return None
+    result = item.get("result")
+    if not isinstance(result, str) or not result:
+        return None
+    return str(item.get("id") or result), result
+
+
+def _decode_final_image(value: str) -> bytes:
+    try:
+        return base64.b64decode(value, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise RuntimeError("Responses API returned malformed final image base64") from exc
+
+
 class OpenAICompatibleImageGenerator(ImageGenerator):
-    """OpenAI-compatible Images API generator using ChatEnv OpenAI config."""
+    """OpenAI-compatible API-key generator supporting Images and Responses APIs."""
 
     def __init__(
         self,
@@ -58,28 +62,37 @@ class OpenAICompatibleImageGenerator(ImageGenerator):
         api_base: Optional[str] = None,
         image_model: Optional[str] = None,
         timeout_seconds: Optional[float] = None,
+        api_mode: Optional[str] = None,
+        host_model: Optional[str] = None,
+        profile: Optional[str] = None,
     ):
-        active_env = _load_active_openai_env()
-        self.api_key = (
-            api_key
-            or OpenAIConfig.OPENAI_API_KEY.value
-            or active_env.get("OPENAI_API_KEY")
-            or os.environ.get("OPENAI_API_KEY")
-        )
+        profile_values = _load_openai_env(profile)
+        explicit_profile = profile is not None
+
+        def configured(name: str) -> str | None:
+            if explicit_profile:
+                return profile_values.get(name)
+            field = getattr(OpenAIConfig, name, None)
+            return (field.value if field is not None else None) or profile_values.get(name) or os.environ.get(name)
+
+        self.profile = profile
+        self.api_key = api_key or configured("OPENAI_API_KEY")
         if not self.api_key:
-            raise ValueError("OPENAI_API_KEY not set")
-
-        self.api_base = (
-            api_base
-            or OpenAIConfig.OPENAI_API_BASE.value
-            or active_env.get("OPENAI_API_BASE")
-            or os.environ.get("OPENAI_API_BASE")
-            or ""
-        ).rstrip("/")
+            raise ValueError(f"OPENAI_API_KEY not set{f' in OpenAI profile {profile}' if profile else ''}")
+        self.api_base = (api_base or configured("OPENAI_API_BASE") or "").rstrip("/")
         if not self.api_base:
-            raise ValueError("OPENAI_API_BASE not set")
+            raise ValueError(f"OPENAI_API_BASE not set{f' in OpenAI profile {profile}' if profile else ''}")
 
-        self.image_model, self.default_quality = _normalize_image_model(image_model)
+        model_values = dict(profile_values)
+        if not explicit_profile:
+            configured_image = configured("OPENAI_IMAGE_MODEL")
+            if configured_image:
+                model_values["OPENAI_IMAGE_MODEL"] = configured_image
+        self.image_model, self.default_quality = _normalize_image_model(image_model, model_values)
+        self.host_model = host_model or configured("OPENAI_API_MODEL") or DEFAULT_HOST_MODEL
+        self.api_mode = api_mode or ChatImgConfig.CHATIMG_OPENAI_API_MODE.value or "images"
+        if self.api_mode not in {"images", "responses"}:
+            raise ValueError("api_mode must be 'images' or 'responses'")
         self.timeout_seconds = float(timeout_seconds or 300)
 
     def generate(
@@ -91,21 +104,21 @@ class OpenAICompatibleImageGenerator(ImageGenerator):
         background: Optional[str] = None,
         **kwargs: Any,
     ) -> bytes:
-        image_model, model_quality = _normalize_image_model(model or self.image_model)
+        image_model, model_quality = _normalize_image_model(model or self.image_model, {})
+        resolved_quality = quality or model_quality or self.default_quality or "medium"
+        if self.api_mode == "responses":
+            return self._generate_responses(prompt, image_model, size, resolved_quality)
         payload = {
             "model": image_model,
             "prompt": prompt,
             "size": size,
-            "quality": quality or model_quality or self.default_quality or "medium",
+            "quality": resolved_quality,
             "n": 1,
             **kwargs,
         }
         if background:
             payload["background"] = background
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
+        headers = self._headers()
         response = requests.post(
             f"{self.api_base}/images/generations",
             json=payload,
@@ -114,7 +127,6 @@ class OpenAICompatibleImageGenerator(ImageGenerator):
         )
         if response.status_code != 200:
             raise RuntimeError(f"Images API error ({response.status_code}): {response.text}")
-
         data = response.json()
         item = (data.get("data") or [{}])[0]
         if item.get("b64_json"):
@@ -126,9 +138,75 @@ class OpenAICompatibleImageGenerator(ImageGenerator):
             return url_response.content
         raise RuntimeError(f"Unknown Images API response format: {data}")
 
+    def _headers(self) -> dict[str, str]:
+        return {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
+
+    def _generate_responses(self, prompt: str, image_model: str, size: str, quality: str) -> bytes:
+        if quality not in {"low", "medium"}:
+            raise ValueError("Responses image quality must be 'low' or 'medium'")
+        if size not in {"1024x1024", "1536x1024"}:
+            raise ValueError("Responses image size must be '1024x1024' or '1536x1024'")
+        payload = {
+            "model": self.host_model,
+            "stream": True,
+            "store": False,
+            "input": [{"role": "user", "content": [{"type": "input_text", "text": prompt}]}],
+            "instructions": "Use the image_generation tool to generate the requested image.",
+            "tools": [{"type": "image_generation", "model": image_model, "action": "generate", "quality": quality, "size": size, "partial_images": 1}],
+            "tool_choice": {"type": "image_generation"},
+        }
+        response = requests.post(
+            f"{self.api_base}/responses",
+            json=payload,
+            headers=self._headers(),
+            timeout=self.timeout_seconds,
+            stream=True,
+        )
+        finals: dict[str, str] = {}
+        completed = False
+        try:
+            if response.status_code != 200:
+                raise RuntimeError(f"Responses API error ({response.status_code}): {response.text}")
+            for raw_line in response.iter_lines():
+                line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
+                if not line or not line.startswith("data:"):
+                    continue
+                data = line[5:].strip()
+                if data == "[DONE]":
+                    continue
+                try:
+                    event = json.loads(data)
+                except (TypeError, json.JSONDecodeError) as exc:
+                    raise RuntimeError("Responses API returned malformed SSE payload") from exc
+                if not isinstance(event, dict):
+                    raise RuntimeError("Responses API returned malformed SSE payload")
+                event_type = event.get("type")
+                if event_type == "error":
+                    error = event.get("error") or {}
+                    raise RuntimeError(f"Responses API error: {error.get('message') or error}")
+                if event_type in {"response.failed", "response.incomplete"}:
+                    raise RuntimeError(f"Responses API {event_type.removeprefix('response.')}")
+                if event_type == "response.output_item.done":
+                    final = _final_image_item(event.get("item"))
+                    if final:
+                        finals[final[0]] = final[1]
+                if event_type == "response.completed":
+                    terminal = event.get("response") or {}
+                    status = terminal.get("status")
+                    if status != "completed":
+                        raise RuntimeError(f"Responses API terminal status is {status or 'malformed/incomplete'}")
+                    for item in terminal.get("output") or []:
+                        final = _final_image_item(item)
+                        if final:
+                            finals[final[0]] = final[1]
+                    completed = True
+            if not completed:
+                raise RuntimeError("Responses API stream ended without successful terminal completion")
+            if not finals:
+                raise RuntimeError("Responses API completed without a final image")
+            return _decode_final_image(next(iter(finals.values())))
+        finally:
+            response.close()
+
     def get_models(self) -> list[dict]:
-        return [
-            {"id": "gpt-image-2-low"},
-            {"id": "gpt-image-2-medium"},
-            {"id": "gpt-image-2-high"},
-        ]
+        return [{"id": "gpt-image-2-low"}, {"id": "gpt-image-2-medium"}, {"id": "gpt-image-2-high"}]

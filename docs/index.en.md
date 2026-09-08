@@ -39,9 +39,11 @@ chatimg codex generate "a watercolor fox in the snow" --profile work --aspect-ra
 chatimg pollinations generate "a cyberpunk cat" --model flux --width 512 --height 512 -o cat.png
 ```
 
-### OpenAI-compatible / CRS Images API
+### OpenAI-compatible / CRS API-key images
 
 The `openai` provider follows the OpenAI Images API shape: `POST {OPENAI_API_BASE}/images/generations`. The official base is `https://api.openai.com/v1`, so the full endpoint is `https://api.openai.com/v1/images/generations`.
+
+Images remains the default. Use `--api-mode responses` for a CRS Responses bridge. Its carrier `--host-model` (default `gpt-5.5`, or `OPENAI_API_MODEL`) is independent of the image `--model`. `--profile` loads only the named ChatEnv OpenAI API-key profile, without activation or fallback to another account. Explicit arguments win; this path never reads OAuth token files or retries automatically.
 
 ```bash
 chatenv use -t oai apple
@@ -52,6 +54,7 @@ For CRS API-key acceptance, first call a regular Responses model with the same k
 
 ```bash
 chatimg openai generate \
+  --api-mode responses --profile work --host-model gpt-5.5 \
   "A simple orange paper airplane over a pale blue grid, no text" \
   --model gpt-image-2-low \
   --quality low \

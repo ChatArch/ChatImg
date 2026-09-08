@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.8 - 2026-09-08
+
+### Added
+
+- Add explicit `responses` mode to the reusable OpenAI/CRS API-key provider and CLI while retaining `images` as the compatible default.
+- Add independent Responses carrier model selection via `host_model` / `--host-model`, defaulting to `gpt-5.5`, and isolated named ChatEnv OpenAI profile loading via `profile` / `--profile`.
+- Add typed `CHATIMG_OPENAI_API_MODE` configuration (`images` by default).
+
+### Verification
+
+- Require a successful terminal Responses event plus a completed final image item; reject previews, failed/incomplete/truncated/malformed streams, and late errors without retrying.
+- Cover API-key headers, payload model separation, profile precedence/isolation, response closing, Images compatibility, CLI signatures, docs, and version contracts.
+
 ## 0.1.7 - 2026-09-02
 
 ### Added
