@@ -43,7 +43,7 @@ chatimg pollinations generate "a cyberpunk cat" --model flux --width 512 --heigh
 
 The `openai` provider follows the OpenAI Images API shape: `POST {OPENAI_API_BASE}/images/generations`. The official base is `https://api.openai.com/v1`, so the full endpoint is `https://api.openai.com/v1/images/generations`.
 
-Images remains the default. Use `--api-mode responses` for a CRS Responses bridge. Its carrier `--host-model` (default `gpt-5.5`, or `OPENAI_API_MODEL`) is independent of the image `--model`. `--profile` loads only the named ChatEnv OpenAI API-key profile, without activation or fallback to another account. Explicit arguments win; this path never reads OAuth token files or retries automatically.
+Images remains the default. Use `--api-mode responses` for a CRS Responses bridge. Its carrier `--host-model` (default `gpt-5.5`, or `OPENAI_API_MODEL`) is independent of the image `--model`. Without `--profile`, precedence is explicit argument, process environment, active ChatEnv profile, then default. A named profile is isolated. API mode uses explicit argument, process environment, active ChatImg profile, then `images`. This path never reads OAuth token files or retries automatically; unsupported Responses options are rejected before HTTP.
 
 ```bash
 chatenv use -t oai apple

@@ -6,7 +6,10 @@ from click.testing import CliRunner
 
 
 def _sse(*events):
-    return [f"data: {json.dumps(event)}".encode() for event in events]
+    lines = []
+    for event in events:
+        lines.extend([f"data: {json.dumps(event)}".encode(), b""])
+    return lines
 
 
 class StreamResponse:
@@ -78,6 +81,49 @@ def test_responses_accepts_final_item_from_completed_output(monkeypatch):
     assert response.closed
 
 
+def test_responses_decodes_multiline_sse_frames_and_ignores_metadata(monkeypatch):
+    from chatimg.image.openai_compatible import OpenAICompatibleImageGenerator
+
+    raw = base64.b64encode(b"multiline-image").decode()
+    response = StreamResponse([
+        b": keepalive",
+        b"event: response.output_item.done",
+        b"id: 1",
+        b'data: {"type":',
+        f'data: "response.output_item.done", "item": {{"id": "img", "type": "image_generation_call", "status": "completed", "result": "{raw}"}}}}'.encode(),
+        b"",
+        b"retry: 1000",
+        b'data: {"type": "response.completed",',
+        b'data: "response": {"status": "completed", "output": []}}',
+        b"",
+    ])
+    monkeypatch.setattr("requests.post", lambda *a, **k: response)
+    generator = OpenAICompatibleImageGenerator(api_key="key", api_base="https://example/v1", api_mode="responses")
+    assert generator.generate("fox") == b"multiline-image"
+    assert response.closed
+
+
+@pytest.mark.parametrize(
+    "lines",
+    [
+        [b"data: []", b""],
+        [b'{not-an-sse-frame}', b""],
+        [b'data: {"type":"response.completed","response":[]}', b""],
+        [b'data: {"type":"response.completed","response":{"status":"completed","output":{}}}', b""],
+        [b'data: {"type":"error","error":"bad"}', b""],
+    ],
+)
+def test_responses_rejects_malformed_sse_shapes_as_runtime_error(monkeypatch, lines):
+    from chatimg.image.openai_compatible import OpenAICompatibleImageGenerator
+
+    response = StreamResponse(lines)
+    monkeypatch.setattr("requests.post", lambda *a, **k: response)
+    generator = OpenAICompatibleImageGenerator(api_key="key", api_base="https://example/v1", api_mode="responses")
+    with pytest.raises(RuntimeError):
+        generator.generate("fox")
+    assert response.closed
+
+
 @pytest.mark.parametrize(
     "events,match",
     [
@@ -129,6 +175,29 @@ def test_responses_rejects_unverified_tool_options_without_request(monkeypatch, 
     assert calls == []
 
 
+def test_responses_forwards_background_and_rejects_unknown_kwargs(monkeypatch):
+    from chatimg.image.openai_compatible import OpenAICompatibleImageGenerator
+
+    raw = base64.b64encode(b"image").decode()
+    captured = {}
+    response = StreamResponse(_sse({"type": "response.completed", "response": {"status": "completed", "output": [{"type": "image_generation_call", "status": "completed", "result": raw}]}}))
+
+    def post(*args, **kwargs):
+        captured.update(kwargs)
+        return response
+
+    monkeypatch.setattr("requests.post", post)
+    generator = OpenAICompatibleImageGenerator(api_key="key", api_base="https://example/v1", api_mode="responses")
+    assert generator.generate("fox", background="transparent") == b"image"
+    assert captured["json"]["tools"][0]["background"] == "transparent"
+
+    calls = []
+    monkeypatch.setattr("requests.post", lambda *a, **k: calls.append(1))
+    with pytest.raises(ValueError, match="unsupported Responses options: moderation"):
+        generator.generate("fox", moderation="low")
+    assert calls == []
+
+
 def test_explicit_profile_is_isolated_and_explicit_kwargs_win(monkeypatch, tmp_path):
     from chatimg.config import OpenAIConfig
     from chatimg.image.openai_compatible import OpenAICompatibleImageGenerator
@@ -161,7 +230,7 @@ def test_missing_explicit_profile_does_not_fall_back(monkeypatch, tmp_path):
         OpenAICompatibleImageGenerator(profile="missing", api_base="https://example/v1")
 
 
-def test_typed_mode_setting_and_active_host_model_precedence(monkeypatch, tmp_path):
+def test_cached_envfield_values_do_not_shadow_active_store(monkeypatch, tmp_path):
     from chatimg.config import ChatImgConfig, OpenAIConfig
     from chatimg.image.openai_compatible import OpenAICompatibleImageGenerator
 
@@ -175,14 +244,55 @@ def test_typed_mode_setting_and_active_host_model_precedence(monkeypatch, tmp_pa
     original_mode = ChatImgConfig.CHATIMG_OPENAI_API_MODE.value
     original_host = OpenAIConfig.OPENAI_API_MODEL.value
     try:
-        ChatImgConfig.CHATIMG_OPENAI_API_MODE.value = "responses"
+        ChatImgConfig.CHATIMG_OPENAI_API_MODE.value = "images"
         OpenAIConfig.OPENAI_API_MODEL.value = "gpt-config"
         generator = OpenAICompatibleImageGenerator()
     finally:
         ChatImgConfig.CHATIMG_OPENAI_API_MODE.value = original_mode
         OpenAIConfig.OPENAI_API_MODEL.value = original_host
-    assert generator.api_mode == "responses"
-    assert generator.host_model == "gpt-config"
+    assert generator.api_mode == "images"
+    assert generator.host_model == "gpt-active"
+
+
+def test_public_env_stores_control_mode_and_active_openai_precedence(monkeypatch, tmp_path):
+    from chatenv import EnvStore, get_paths
+    from chatimg.config import ChatImgConfig, OpenAIConfig
+    from chatimg.image.openai_compatible import OpenAICompatibleImageGenerator
+
+    monkeypatch.setenv("CHATARCH_HOME", str(tmp_path))
+    store = EnvStore(get_paths().envs_dir)
+    store.save_active(ChatImgConfig, {"CHATIMG_OPENAI_API_MODE": "responses"})
+    store.save_active(OpenAIConfig, {
+        "OPENAI_API_KEY": "active-key",
+        "OPENAI_API_BASE": "https://active/v1",
+        "OPENAI_API_MODEL": "gpt-active",
+        "OPENAI_IMAGE_MODEL": "gpt-image-2-low",
+    })
+    store.save_profile(OpenAIConfig, "fixture", {
+        "OPENAI_API_KEY": "fixture-key",
+        "OPENAI_API_BASE": "https://fixture/v1",
+        "OPENAI_API_MODEL": "gpt-fixture",
+        "OPENAI_IMAGE_MODEL": "gpt-image-2-medium",
+    })
+
+    named = OpenAICompatibleImageGenerator(profile="fixture")
+    assert named.api_mode == "responses"
+    assert named.api_key == "fixture-key"
+    assert named.host_model == "gpt-fixture"
+    assert named.default_quality == "medium"
+
+    active = OpenAICompatibleImageGenerator()
+    assert active.host_model == "gpt-active"
+    assert active.default_quality == "low"
+
+    monkeypatch.setenv("CHATIMG_OPENAI_API_MODE", "images")
+    monkeypatch.setenv("OPENAI_API_MODEL", "gpt-process")
+    monkeypatch.setenv("OPENAI_IMAGE_MODEL", "gpt-image-2-medium")
+    process = OpenAICompatibleImageGenerator()
+    assert process.api_mode == "images"
+    assert process.host_model == "gpt-process"
+    assert process.default_quality == "medium"
+    assert OpenAICompatibleImageGenerator(api_mode="responses").api_mode == "responses"
 
 
 def test_openai_cli_forwards_responses_profile_and_host_model(monkeypatch, tmp_path):

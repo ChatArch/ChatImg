@@ -79,7 +79,7 @@ chatimg tongyi generate "a cyberpunk cat" --size "1024*1024" -o cat.png
 
 The `openai` provider follows the OpenAI Images API shape: `POST {OPENAI_API_BASE}/images/generations`. The official base is `https://api.openai.com/v1`, so the full official endpoint is `https://api.openai.com/v1/images/generations`. CRS-compatible services can provide their own `/v1` base, such as `https://crs.example/openai/v1`.
 
-Images remains the default. For a CRS bridge that exposes final image results through `/responses`, select `--api-mode responses`. The carrier `--host-model` (default `gpt-5.5`, or `OPENAI_API_MODEL`) is independent of the `--model` image preset. A named `--profile` loads only that ChatEnv OpenAI profile without activating it or falling back to another account; explicit CLI/Python arguments win. This API-key path never reads OAuth token files and never retries an image request automatically.
+Images remains the default. For a CRS bridge that exposes final image results through `/responses`, select `--api-mode responses`. The carrier `--host-model` (default `gpt-5.5`, or `OPENAI_API_MODEL`) is independent of the `--model` image preset. Without `--profile`, precedence is explicit argument, process environment, active ChatEnv profile, then default. A named `--profile` loads only that OpenAI profile without activating it or falling back to another account; explicit arguments still win. API mode uses explicit argument, process environment, active ChatImg profile, then `images`. This API-key path never reads OAuth token files and never retries an image request automatically. Responses forwards `background`; unknown extra Python options are rejected before HTTP.
 
 Main fields:
 

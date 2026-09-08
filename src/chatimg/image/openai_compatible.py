@@ -2,7 +2,7 @@ import base64
 import binascii
 import json
 import os
-from typing import Any, Optional
+from typing import Any, Iterable, Iterator, Optional
 
 import requests
 from chatenv import EnvStore, get_paths
@@ -25,6 +25,55 @@ def _load_openai_env(profile: str | None = None) -> dict[str, str]:
         except FileNotFoundError as exc:
             raise ValueError(f"OpenAI profile not found: {profile}") from exc
     return {str(key): str(value) for key, value in values.items() if value is not None}
+
+
+def _load_chatimg_env() -> dict[str, str]:
+    values = EnvStore(get_paths().envs_dir).load_active(ChatImgConfig)
+    return {str(key): str(value) for key, value in values.items() if value is not None}
+
+
+def iter_sse_json_events(lines: Iterable[bytes | str]) -> Iterator[dict[str, Any]]:
+    """Yield JSON objects from complete SSE frames in an iterable of lines."""
+
+    data_lines: list[str] = []
+
+    def decode_frame() -> dict[str, Any] | None:
+        if not data_lines:
+            return None
+        data = "\n".join(data_lines)
+        data_lines.clear()
+        if data == "[DONE]":
+            return None
+        try:
+            event = json.loads(data)
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise RuntimeError("Responses API returned malformed SSE payload") from exc
+        if not isinstance(event, dict):
+            raise RuntimeError("Responses API returned malformed SSE payload")
+        return event
+
+    for raw_line in lines:
+        if not isinstance(raw_line, (bytes, str)):
+            raise RuntimeError("Responses API returned malformed SSE payload")
+        try:
+            line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
+        except UnicodeDecodeError as exc:
+            raise RuntimeError("Responses API returned malformed SSE payload") from exc
+        if line == "":
+            event = decode_frame()
+            if event is not None:
+                yield event
+            continue
+        if line.startswith(":"):
+            continue
+        field, separator, value = line.partition(":")
+        if separator and value.startswith(" "):
+            value = value[1:]
+        if field == "data":
+            data_lines.append(value)
+    event = decode_frame()
+    if event is not None:
+        yield event
 
 
 def _normalize_image_model(model: str | None, profile_values: dict[str, str]) -> tuple[str, str | None]:
@@ -67,13 +116,13 @@ class OpenAICompatibleImageGenerator(ImageGenerator):
         profile: Optional[str] = None,
     ):
         profile_values = _load_openai_env(profile)
+        chatimg_values = _load_chatimg_env()
         explicit_profile = profile is not None
 
         def configured(name: str) -> str | None:
             if explicit_profile:
                 return profile_values.get(name)
-            field = getattr(OpenAIConfig, name, None)
-            return (field.value if field is not None else None) or profile_values.get(name) or os.environ.get(name)
+            return os.environ.get(name) or profile_values.get(name)
 
         self.profile = profile
         self.api_key = api_key or configured("OPENAI_API_KEY")
@@ -90,7 +139,12 @@ class OpenAICompatibleImageGenerator(ImageGenerator):
                 model_values["OPENAI_IMAGE_MODEL"] = configured_image
         self.image_model, self.default_quality = _normalize_image_model(image_model, model_values)
         self.host_model = host_model or configured("OPENAI_API_MODEL") or DEFAULT_HOST_MODEL
-        self.api_mode = api_mode or ChatImgConfig.CHATIMG_OPENAI_API_MODE.value or "images"
+        self.api_mode = (
+            api_mode
+            or os.environ.get("CHATIMG_OPENAI_API_MODE")
+            or chatimg_values.get("CHATIMG_OPENAI_API_MODE")
+            or "images"
+        )
         if self.api_mode not in {"images", "responses"}:
             raise ValueError("api_mode must be 'images' or 'responses'")
         self.timeout_seconds = float(timeout_seconds or 300)
@@ -107,7 +161,14 @@ class OpenAICompatibleImageGenerator(ImageGenerator):
         image_model, model_quality = _normalize_image_model(model or self.image_model, {})
         resolved_quality = quality or model_quality or self.default_quality or "medium"
         if self.api_mode == "responses":
-            return self._generate_responses(prompt, image_model, size, resolved_quality)
+            return self._generate_responses(
+                prompt,
+                image_model,
+                size,
+                resolved_quality,
+                background=background,
+                options=kwargs,
+            )
         payload = {
             "model": image_model,
             "prompt": prompt,
@@ -141,18 +202,39 @@ class OpenAICompatibleImageGenerator(ImageGenerator):
     def _headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
 
-    def _generate_responses(self, prompt: str, image_model: str, size: str, quality: str) -> bytes:
+    def _generate_responses(
+        self,
+        prompt: str,
+        image_model: str,
+        size: str,
+        quality: str,
+        *,
+        background: str | None,
+        options: dict[str, Any],
+    ) -> bytes:
         if quality not in {"low", "medium"}:
             raise ValueError("Responses image quality must be 'low' or 'medium'")
         if size not in {"1024x1024", "1536x1024"}:
             raise ValueError("Responses image size must be '1024x1024' or '1536x1024'")
+        if options:
+            raise ValueError(f"unsupported Responses options: {', '.join(sorted(options))}")
+        image_tool = {
+            "type": "image_generation",
+            "model": image_model,
+            "action": "generate",
+            "quality": quality,
+            "size": size,
+            "partial_images": 1,
+        }
+        if background:
+            image_tool["background"] = background
         payload = {
             "model": self.host_model,
             "stream": True,
             "store": False,
             "input": [{"role": "user", "content": [{"type": "input_text", "text": prompt}]}],
             "instructions": "Use the image_generation tool to generate the requested image.",
-            "tools": [{"type": "image_generation", "model": image_model, "action": "generate", "quality": quality, "size": size, "partial_images": 1}],
+            "tools": [image_tool],
             "tool_choice": {"type": "image_generation"},
         }
         response = requests.post(
@@ -167,35 +249,37 @@ class OpenAICompatibleImageGenerator(ImageGenerator):
         try:
             if response.status_code != 200:
                 raise RuntimeError(f"Responses API error ({response.status_code}): {response.text}")
-            for raw_line in response.iter_lines():
-                line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
-                if not line or not line.startswith("data:"):
-                    continue
-                data = line[5:].strip()
-                if data == "[DONE]":
-                    continue
-                try:
-                    event = json.loads(data)
-                except (TypeError, json.JSONDecodeError) as exc:
-                    raise RuntimeError("Responses API returned malformed SSE payload") from exc
-                if not isinstance(event, dict):
-                    raise RuntimeError("Responses API returned malformed SSE payload")
+            for event in iter_sse_json_events(response.iter_lines()):
                 event_type = event.get("type")
+                if not isinstance(event_type, str):
+                    raise RuntimeError("Responses API returned malformed SSE payload")
                 if event_type == "error":
-                    error = event.get("error") or {}
+                    error = event.get("error")
+                    if not isinstance(error, dict):
+                        raise RuntimeError("Responses API returned malformed error payload")
                     raise RuntimeError(f"Responses API error: {error.get('message') or error}")
                 if event_type in {"response.failed", "response.incomplete"}:
                     raise RuntimeError(f"Responses API {event_type.removeprefix('response.')}")
                 if event_type == "response.output_item.done":
-                    final = _final_image_item(event.get("item"))
+                    item = event.get("item")
+                    if not isinstance(item, dict):
+                        raise RuntimeError("Responses API returned malformed output item")
+                    final = _final_image_item(item)
                     if final:
                         finals[final[0]] = final[1]
                 if event_type == "response.completed":
-                    terminal = event.get("response") or {}
+                    terminal = event.get("response")
+                    if not isinstance(terminal, dict):
+                        raise RuntimeError("Responses API returned malformed terminal response")
                     status = terminal.get("status")
                     if status != "completed":
                         raise RuntimeError(f"Responses API terminal status is {status or 'malformed/incomplete'}")
-                    for item in terminal.get("output") or []:
+                    output = terminal.get("output", [])
+                    if not isinstance(output, list):
+                        raise RuntimeError("Responses API returned malformed terminal output")
+                    for item in output:
+                        if not isinstance(item, dict):
+                            raise RuntimeError("Responses API returned malformed output item")
                         final = _final_image_item(item)
                         if final:
                             finals[final[0]] = final[1]
