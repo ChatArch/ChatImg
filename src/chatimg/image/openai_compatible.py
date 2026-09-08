@@ -71,9 +71,8 @@ def iter_sse_json_events(lines: Iterable[bytes | str]) -> Iterator[dict[str, Any
             value = value[1:]
         if field == "data":
             data_lines.append(value)
-    event = decode_frame()
-    if event is not None:
-        yield event
+    if data_lines:
+        raise RuntimeError("Responses API stream ended with an unterminated SSE frame")
 
 
 def _normalize_image_model(model: str | None, profile_values: dict[str, str]) -> tuple[str, str | None]:

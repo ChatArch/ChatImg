@@ -81,6 +81,42 @@ def test_responses_accepts_final_item_from_completed_output(monkeypatch):
     assert response.closed
 
 
+def test_responses_rejects_terminal_frame_without_final_blank_line(monkeypatch):
+    from chatimg.image.openai_compatible import OpenAICompatibleImageGenerator
+
+    raw = base64.b64encode(b"must-not-return").decode()
+    response = StreamResponse([
+        f'data: {{"type":"response.completed","response":{{"status":"completed","output":[{{"type":"image_generation_call","status":"completed","result":"{raw}"}}]}}}}'.encode(),
+    ])
+    calls = []
+    monkeypatch.setattr("requests.post", lambda *a, **k: calls.append(1) or response)
+    generator = OpenAICompatibleImageGenerator(api_key="key", api_base="https://example/v1", api_mode="responses")
+    with pytest.raises(RuntimeError, match="unterminated SSE frame"):
+        generator.generate("fox")
+    assert calls == [1]
+    assert response.closed
+
+
+def test_responses_rejects_unterminated_trailing_frame_after_success(monkeypatch):
+    from chatimg.image.openai_compatible import OpenAICompatibleImageGenerator
+
+    raw = base64.b64encode(b"must-not-return").decode()
+    response = StreamResponse(
+        _sse(
+            {"type": "response.output_item.done", "item": {"type": "image_generation_call", "status": "completed", "result": raw}},
+            {"type": "response.completed", "response": {"status": "completed", "output": []}},
+        )
+        + [b'data: {"type":"response.output_image_generation_call.partial_image","partial_image_b64":"cHJldmlldw=="}']
+    )
+    calls = []
+    monkeypatch.setattr("requests.post", lambda *a, **k: calls.append(1) or response)
+    generator = OpenAICompatibleImageGenerator(api_key="key", api_base="https://example/v1", api_mode="responses")
+    with pytest.raises(RuntimeError, match="unterminated SSE frame"):
+        generator.generate("fox")
+    assert calls == [1]
+    assert response.closed
+
+
 def test_responses_decodes_multiline_sse_frames_and_ignores_metadata(monkeypatch):
     from chatimg.image.openai_compatible import OpenAICompatibleImageGenerator
 
@@ -96,6 +132,10 @@ def test_responses_decodes_multiline_sse_frames_and_ignores_metadata(monkeypatch
         b'data: {"type": "response.completed",',
         b'data: "response": {"status": "completed", "output": []}}',
         b"",
+        b": final keepalive",
+        b"data: [DONE]",
+        b"",
+        b": trailing comment",
     ])
     monkeypatch.setattr("requests.post", lambda *a, **k: response)
     generator = OpenAICompatibleImageGenerator(api_key="key", api_base="https://example/v1", api_mode="responses")
