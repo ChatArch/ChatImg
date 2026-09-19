@@ -1,0 +1,711 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://arch.gh.wzhecnu.cn/ChatImg/en/">
+      
+      
+      
+        <link rel="next" href="cli-tree/">
+      
+      
+        
+          <link rel="alternate" href="/ChatImg/" hreflang="zh">
+        
+          <link rel="alternate" href="/ChatImg/en/" hreflang="en">
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Home - ChatImg Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#chatimg-documentation" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="./" title="ChatImg Documentation" class="md-header__button md-logo" aria-label="ChatImg Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ChatImg Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Home
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="/ChatImg/" hreflang="zh" class="md-select__link">
+              中文
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="/ChatImg/en/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/ChatArch/ChatImg" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="./" title="ChatImg Documentation" class="md-nav__button md-logo" aria-label="ChatImg Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    ChatImg Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/ChatArch/ChatImg" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#providers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Providers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common commands
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#openai-compatible-crs-api-key-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenAI-compatible / CRS API-key images
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#codex-gpt-image2-verified-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Codex / GPT Image2 verified examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#python-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python API
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#local-preview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local preview
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cli-tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Tree
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#providers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Providers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common commands
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#openai-compatible-crs-api-key-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenAI-compatible / CRS API-key images
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#codex-gpt-image2-verified-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Codex / GPT Image2 verified examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#python-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python API
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#local-preview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local preview
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="chatimg-documentation">ChatImg Documentation</h1>
+<p align="center">
+  <img src="assets/chatimg-logo.png" alt="ChatImg logo" width="120" />
+</p>
+
+<p>ChatImg is the ChatArch image-generation package. It carries the provider implementations previously exposed by the decoupled <code>chattool image</code> surface.</p>
+<h2 id="providers">Providers</h2>
+<ul>
+<li><code>codex</code> / <code>openai-codex</code></li>
+<li><code>pollinations</code></li>
+<li><code>siliconflow</code></li>
+<li><code>huggingface</code></li>
+<li><code>liblib</code></li>
+<li><code>tongyi</code></li>
+</ul>
+<h2 id="common-commands">Common commands</h2>
+<pre><code class="language-bash">chatimg --help
+chatimg --version
+chatimg --tree
+chatimg --tree-brief
+chatimg openai generate &quot;a small red apple icon&quot; -o apple.png
+chatimg codex auth-status --profile work
+chatimg codex auth-refresh --profile work
+chatimg codex list-models
+chatimg pollinations list-models
+</code></pre>
+<p><code>chatimg --tree</code> includes parameter signatures by default. <code>chatimg --tree-brief</code> keeps command nodes and descriptions while omitting signatures. Both views use the public CLI name <code>chatimg</code> as the root.</p>
+<p>Generation examples:</p>
+<pre><code class="language-bash">chatimg openai generate &quot;a watercolor fox in the snow&quot; --model gpt-image-2-medium --size 1024x1024 -o fox.png
+chatimg codex generate &quot;a watercolor fox in the snow&quot; --profile work --aspect-ratio square -o fox-codex.png
+chatimg pollinations generate &quot;a cyberpunk cat&quot; --model flux --width 512 --height 512 -o cat.png
+</code></pre>
+<h3 id="openai-compatible-crs-api-key-images">OpenAI-compatible / CRS API-key images</h3>
+<p>The <code>openai</code> provider follows the OpenAI Images API shape: <code>POST {OPENAI_API_BASE}/images/generations</code>. The official base is <code>https://api.openai.com/v1</code>, so the full endpoint is <code>https://api.openai.com/v1/images/generations</code>.</p>
+<p>Images remains the default. Use <code>--api-mode responses</code> for a CRS Responses bridge. Its carrier <code>--host-model</code> (default <code>gpt-5.5</code>, or <code>OPENAI_API_MODEL</code>) is independent of the image <code>--model</code>. Without <code>--profile</code>, precedence is explicit argument, process environment, active ChatEnv profile, then default. A named profile is isolated. API mode uses explicit argument, process environment, active ChatImg profile, then <code>images</code>. This path never reads OAuth token files or retries automatically; unsupported Responses options are rejected before HTTP.</p>
+<pre><code class="language-bash">chatenv use -t oai apple
+chatimg openai generate &quot;a small red apple icon&quot; -o apple.png
+</code></pre>
+<p>For CRS API-key acceptance, first call a regular Responses model with the same key, then call the Images API. The <code>openai</code> provider only reads <code>OPENAI_API_KEY</code> and never falls back to an access token:</p>
+<pre><code class="language-bash">chatimg openai generate \
+  --api-mode responses --profile work --host-model gpt-5.5 \
+  &quot;A simple orange paper airplane over a pale blue grid, no text&quot; \
+  --model gpt-image-2-low \
+  --quality low \
+  --size 1024x1024 \
+  -o generated/crs-api-key-image.png
+</code></pre>
+<h3 id="codex-gpt-image2-verified-examples">Codex / GPT Image2 verified examples</h3>
+<p>The <code>codex</code> provider uses the ChatGPT/Codex OAuth-backed Responses API. The request payload uses the <code>image_generation</code> tool with model <code>gpt-image-2</code>. It is not the external Codex CLI.</p>
+<p><code>chatimg codex</code> now reuses ChatEnv's shared <code>OpenAI</code> profile and runtime token-store, so users no longer maintain a separate Codex env file:</p>
+<ul>
+<li>Runtime token-store: <code>~/.chatarch/tokens/OpenAI/&lt;profile&gt;.json</code>, containing dynamic access/refresh token state. These values have the highest priority.</li>
+<li>Stable seed: <code>~/.chatarch/envs/OpenAI/&lt;profile&gt;.env</code> (<code>default</code> uses active <code>OpenAI/.env</code>), used only for OAuth/backend/model seed or fallback values.</li>
+<li>Common seed fields: <code>OPENAI_OAUTH_BASE_URL</code>, <code>CHATGPT_BACKEND_BASE_URL</code>, <code>OPENAI_API_MODEL</code>, and <code>OPENAI_IMAGE_MODEL</code>.</li>
+<li>The request URL defaults to <code>${CHATGPT_BACKEND_BASE_URL}/codex/responses</code>.</li>
+<li>The <code>openai</code>/<code>crs</code> API-key provider still reads only <code>OPENAI_API_KEY</code> and never falls back to OAuth tokens.</li>
+</ul>
+<p>Specify the OpenAI profile explicitly when needed:</p>
+<pre><code class="language-bash">chatimg codex auth-status --profile work
+chatimg codex auth-refresh --profile work
+chatimg codex generate &quot;a small orange paper airplane&quot; \
+  --profile work \
+  --host-model gpt-5.5 \
+  --image-model gpt-image-2-low \
+  -o generated/codex-image.png
+</code></pre>
+<p>Basic acceptance image:</p>
+<pre><code class="language-bash">chatimg codex generate \
+  &quot;A clean minimal ChatImg acceptance test illustration: a friendly robot holding a small picture frame, modern flat design, white background, no text&quot; \
+  --image-model gpt-image-2-low \
+  --aspect-ratio square \
+  -o generated/chatimg-gpt-image2-basic.png \
+  --timeout 300
+</code></pre>
+<p>Quicksort flowchart:</p>
+<pre><code class="language-bash">chatimg codex generate \
+  &quot;Create a clean landscape technical design flowchart explaining quicksort. Use this exact example array: [6, 3, 8, 5, 1, 10, 2]. Pick pivot = 5. Partition correctly: left part [3, 1, 2] labeled &lt; pivot, right part [6, 8, 10] labeled &gt; pivot. Include steps: START, base case length &lt;= 1?, pick pivot, partition array, recursively sort left part, recursively sort right part, concatenate sorted-left + pivot + sorted-right, END. Modern vector style, white background, blue/orange accents, arrows, decision diamond, readable simple English labels. Avoid mathematical mistakes.&quot; \
+  --image-model gpt-image-2-medium \
+  --aspect-ratio landscape \
+  -o generated/chatimg-gpt-image2-quicksort-flowchart.png \
+  --timeout 300
+</code></pre>
+<h2 id="python-api">Python API</h2>
+<pre><code class="language-python">from chatimg.image import create_generator
+
+generator = create_generator(&quot;codex&quot;, profile=&quot;work&quot;)
+result = generator.generate(&quot;A cute cat astronaut&quot;)
+</code></pre>
+<h2 id="configuration">Configuration</h2>
+<p>ChatImg registers a ChatEnv <code>chatimg</code> config type. Run <code>chatenv test -t chatimg -I</code> for a side-effect-free schema check.</p>
+<p>Main fields: <code>OPENAI_API_BASE</code> / <code>OPENAI_API_KEY</code> for the OpenAI-compatible Images API; <code>OPENAI_OAUTH_BASE_URL</code> / <code>CHATGPT_BACKEND_BASE_URL</code> / <code>OPENAI_API_MODEL</code> / <code>OPENAI_IMAGE_MODEL</code> for the OpenAI profile seed; runtime OAuth tokens live in <code>tokens/OpenAI/&lt;profile&gt;.json</code>; other providers use <code>POLLINATIONS_*</code>, <code>SILICONFLOW_*</code>, <code>HUGGINGFACE_HUB_TOKEN</code>, <code>LIBLIB_*</code>, <code>DASHSCOPE_API_KEY</code>.</p>
+<h2 id="local-preview">Local preview</h2>
+<pre><code class="language-bash">pip install -e &quot;.[docs]&quot;
+mkdocs serve
+</code></pre>
+<p>CLI tree: <a href="cli-tree/">CLI Tree</a>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": [], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
