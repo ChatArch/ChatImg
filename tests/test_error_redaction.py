@@ -11,6 +11,32 @@ from chatimg.image.responses import final_image_b64
 CANARY = "fixture-upstream-credential-canary"
 
 
+def test_codex_http_error_does_not_echo_body(monkeypatch):
+    import httpx
+    from chatimg.image.codex import CodexImageGenerator
+
+    real_client = httpx.Client
+    calls = []
+
+    def respond(request):
+        calls.append(str(request.url))
+        return httpx.Response(401, text=CANARY)
+
+    monkeypatch.setattr(httpx, "Client", lambda **kwargs: real_client(
+        transport=httpx.MockTransport(respond), **kwargs
+    ))
+    client = CodexImageGenerator.__new__(CodexImageGenerator)
+    client.base_url = "https://relay.example.invalid/backend-api/codex"
+    with pytest.raises(RuntimeError) as error:
+        client.request_image_b64(
+            "fixture-access-token", prompt="fixture", host_model="fixture-model",
+            image_model="gpt-image-2-low", aspect_ratio="square", timeout_seconds=1,
+        )
+    assert "401" in str(error.value)
+    assert CANARY not in str(error.value)
+    assert calls == [client.base_url + "/responses"]
+
+
 @pytest.fixture
 def generator(tmp_path, monkeypatch):
     monkeypatch.setenv("CHATARCH_HOME", str(tmp_path))

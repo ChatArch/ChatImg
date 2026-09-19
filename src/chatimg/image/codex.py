@@ -428,12 +428,10 @@ class CodexImageGenerator(ImageGenerator):
                 try:
                     response.raise_for_status()
                 except httpx.HTTPStatusError as exc:
-                    exc.response.read()
-                    snippet = exc.response.text[:800]
                     raise RuntimeError(
                         "Codex Responses API returned HTTP "
-                        f"{exc.response.status_code}: {snippet}"
-                    ) from exc
+                        f"{exc.response.status_code}"
+                    ) from None
                 return final_image_b64(self.iter_sse_json(response))
 
     def generate(self, prompt: str, **kwargs) -> bytes:
