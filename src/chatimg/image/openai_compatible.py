@@ -1,16 +1,16 @@
 import base64
-import binascii
-import json
 import os
-from typing import Any, Iterable, Iterator, Optional
+from typing import Any, Optional
 
-import requests
 from chatenv import EnvStore, get_paths
 from chatenv.configs import OpenAIConfig
 
+from chatimg import http
 from chatimg.config import ChatImgConfig
+from chatimg.http import require_base_url
 
 from .base import ImageGenerator
+from .responses import _decode_final_image, final_image_b64, iter_sse_json_events
 
 DEFAULT_HOST_MODEL = "gpt-5.5"
 
@@ -32,73 +32,12 @@ def _load_chatimg_env() -> dict[str, str]:
     return {str(key): str(value) for key, value in values.items() if value is not None}
 
 
-def iter_sse_json_events(lines: Iterable[bytes | str]) -> Iterator[dict[str, Any]]:
-    """Yield JSON objects from complete SSE frames in an iterable of lines."""
-
-    data_lines: list[str] = []
-
-    def decode_frame() -> dict[str, Any] | None:
-        if not data_lines:
-            return None
-        data = "\n".join(data_lines)
-        data_lines.clear()
-        if data == "[DONE]":
-            return None
-        try:
-            event = json.loads(data)
-        except (TypeError, json.JSONDecodeError) as exc:
-            raise RuntimeError("Responses API returned malformed SSE payload") from exc
-        if not isinstance(event, dict):
-            raise RuntimeError("Responses API returned malformed SSE payload")
-        return event
-
-    for raw_line in lines:
-        if not isinstance(raw_line, (bytes, str)):
-            raise RuntimeError("Responses API returned malformed SSE payload")
-        try:
-            line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
-        except UnicodeDecodeError as exc:
-            raise RuntimeError("Responses API returned malformed SSE payload") from exc
-        if line == "":
-            event = decode_frame()
-            if event is not None:
-                yield event
-            continue
-        if line.startswith(":"):
-            continue
-        field, separator, value = line.partition(":")
-        if separator and value.startswith(" "):
-            value = value[1:]
-        if field == "data":
-            data_lines.append(value)
-    if data_lines:
-        raise RuntimeError("Responses API stream ended with an unterminated SSE frame")
-
-
 def _normalize_image_model(model: str | None, profile_values: dict[str, str]) -> tuple[str, str | None]:
     value = (model or profile_values.get("OPENAI_IMAGE_MODEL") or "gpt-image-2").strip()
     for suffix in ("-low", "-medium", "-high"):
         if value.endswith(suffix):
             return value[: -len(suffix)], suffix.removeprefix("-")
     return value, None
-
-
-def _final_image_item(item: Any) -> tuple[str, str] | None:
-    if not isinstance(item, dict):
-        return None
-    if item.get("type") != "image_generation_call" or item.get("status") != "completed":
-        return None
-    result = item.get("result")
-    if not isinstance(result, str) or not result:
-        return None
-    return str(item.get("id") or result), result
-
-
-def _decode_final_image(value: str) -> bytes:
-    try:
-        return base64.b64decode(value, validate=True)
-    except (binascii.Error, ValueError) as exc:
-        raise RuntimeError("Responses API returned malformed final image base64") from exc
 
 
 class OpenAICompatibleImageGenerator(ImageGenerator):
@@ -121,15 +60,16 @@ class OpenAICompatibleImageGenerator(ImageGenerator):
         def configured(name: str) -> str | None:
             if explicit_profile:
                 return profile_values.get(name)
-            return os.environ.get(name) or profile_values.get(name)
+            return os.environ.get(name, profile_values.get(name))
 
         self.profile = profile
-        self.api_key = api_key or configured("OPENAI_API_KEY")
-        if not self.api_key:
+        self.api_key = api_key if api_key is not None else configured("OPENAI_API_KEY")
+        if not self.api_key or not self.api_key.strip():
             raise ValueError(f"OPENAI_API_KEY not set{f' in OpenAI profile {profile}' if profile else ''}")
-        self.api_base = (api_base or configured("OPENAI_API_BASE") or "").rstrip("/")
-        if not self.api_base:
-            raise ValueError(f"OPENAI_API_BASE not set{f' in OpenAI profile {profile}' if profile else ''}")
+        self.api_base = require_base_url(
+            api_base if api_base is not None else configured("OPENAI_API_BASE"),
+            "OPENAI_API_BASE",
+        )
 
         model_values = dict(profile_values)
         if not explicit_profile:
@@ -179,24 +119,24 @@ class OpenAICompatibleImageGenerator(ImageGenerator):
         if background:
             payload["background"] = background
         headers = self._headers()
-        response = requests.post(
+        response = http.post(
             f"{self.api_base}/images/generations",
             json=payload,
             headers=headers,
             timeout=self.timeout_seconds,
         )
         if response.status_code != 200:
-            raise RuntimeError(f"Images API error ({response.status_code}): {response.text}")
+            raise RuntimeError(f"Images API error ({response.status_code})")
         data = response.json()
         item = (data.get("data") or [{}])[0]
         if item.get("b64_json"):
             return base64.b64decode(item["b64_json"])
         if item.get("url"):
-            url_response = requests.get(item["url"], timeout=self.timeout_seconds)
+            url_response = http.get(item["url"], timeout=self.timeout_seconds)
             if url_response.status_code != 200:
-                raise RuntimeError(f"Image download error ({url_response.status_code}): {url_response.text}")
+                raise RuntimeError(f"Image download error ({url_response.status_code})")
             return url_response.content
-        raise RuntimeError(f"Unknown Images API response format: {data}")
+        raise RuntimeError("Unknown Images API response format")
 
     def _headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
@@ -236,58 +176,17 @@ class OpenAICompatibleImageGenerator(ImageGenerator):
             "tools": [image_tool],
             "tool_choice": {"type": "image_generation"},
         }
-        response = requests.post(
+        response = http.post(
             f"{self.api_base}/responses",
             json=payload,
             headers=self._headers(),
             timeout=self.timeout_seconds,
             stream=True,
         )
-        finals: dict[str, str] = {}
-        completed = False
         try:
             if response.status_code != 200:
-                raise RuntimeError(f"Responses API error ({response.status_code}): {response.text}")
-            for event in iter_sse_json_events(response.iter_lines()):
-                event_type = event.get("type")
-                if not isinstance(event_type, str):
-                    raise RuntimeError("Responses API returned malformed SSE payload")
-                if event_type == "error":
-                    error = event.get("error")
-                    if not isinstance(error, dict):
-                        raise RuntimeError("Responses API returned malformed error payload")
-                    raise RuntimeError(f"Responses API error: {error.get('message') or error}")
-                if event_type in {"response.failed", "response.incomplete"}:
-                    raise RuntimeError(f"Responses API {event_type.removeprefix('response.')}")
-                if event_type == "response.output_item.done":
-                    item = event.get("item")
-                    if not isinstance(item, dict):
-                        raise RuntimeError("Responses API returned malformed output item")
-                    final = _final_image_item(item)
-                    if final:
-                        finals[final[0]] = final[1]
-                if event_type == "response.completed":
-                    terminal = event.get("response")
-                    if not isinstance(terminal, dict):
-                        raise RuntimeError("Responses API returned malformed terminal response")
-                    status = terminal.get("status")
-                    if status != "completed":
-                        raise RuntimeError(f"Responses API terminal status is {status or 'malformed/incomplete'}")
-                    output = terminal.get("output", [])
-                    if not isinstance(output, list):
-                        raise RuntimeError("Responses API returned malformed terminal output")
-                    for item in output:
-                        if not isinstance(item, dict):
-                            raise RuntimeError("Responses API returned malformed output item")
-                        final = _final_image_item(item)
-                        if final:
-                            finals[final[0]] = final[1]
-                    completed = True
-            if not completed:
-                raise RuntimeError("Responses API stream ended without successful terminal completion")
-            if not finals:
-                raise RuntimeError("Responses API completed without a final image")
-            return _decode_final_image(next(iter(finals.values())))
+                raise RuntimeError(f"Responses API error ({response.status_code})")
+            return _decode_final_image(final_image_b64(iter_sse_json_events(response.iter_lines())))
         finally:
             response.close()
 

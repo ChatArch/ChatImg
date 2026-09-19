@@ -14,12 +14,11 @@ from chatenv.tokens import normalize_token_profile
 
 from chatimg import __version__
 from chatimg.codex_oauth import refresh_codex_oauth_token
+from chatimg.http import require_base_url
 
 from .base import ImageGenerator
+from .responses import _decode_final_image, final_image_b64, iter_sse_json_events
 
-DEFAULT_BASE_URL = "https://chatgpt.com/backend-api/codex"
-DEFAULT_BACKEND_BASE_URL = "https://chatgpt.com/backend-api"
-DEFAULT_OAUTH_BASE_URL = "https://auth.openai.com"
 DEFAULT_HOST_MODEL = "gpt-5.5"
 DEFAULT_IMAGE_MODEL = "gpt-image-2-medium"
 DEFAULT_ASPECT_RATIO = "square"
@@ -89,11 +88,12 @@ def _configured_backend_base_url(values: dict[str, str]) -> str:
         value = values.get(key)
         if value:
             return value.rstrip("/")
-    return DEFAULT_BACKEND_BASE_URL
+    return ""
 
 
 def _configured_codex_base_url(values: dict[str, str]) -> str:
-    return f"{_configured_backend_base_url(values)}/codex"
+    base_url = _configured_backend_base_url(values)
+    return f"{base_url}/codex" if base_url else ""
 
 
 def _configured_host_model(values: dict[str, str]) -> str:
@@ -157,15 +157,13 @@ class CodexImageGenerator(ImageGenerator):
             self.access_token_expires_at = env_seed_value(
                 "OPENAI_ACCESS_TOKEN_EXPIRES_AT"
             )
-        self.oauth_base_url = (
-            self.openai_profile_values.get("OPENAI_OAUTH_BASE_URL")
-            or DEFAULT_OAUTH_BASE_URL
-        ).strip()
+        self.oauth_base_url = self.openai_profile_values.get("OPENAI_OAUTH_BASE_URL", "")
         self.persist_refreshed_tokens = True
+        # Missing endpoints are allowed for offline model/status inspection,
+        # but every network entry point validates before resolving credentials.
         self.base_url = (
-            base_url
-            or _configured_codex_base_url(self.openai_profile_values)
-            or DEFAULT_BASE_URL
+            base_url if base_url is not None
+            else _configured_codex_base_url(self.openai_profile_values)
         )
         self.host_model = (
             host_model
@@ -368,47 +366,7 @@ class CodexImageGenerator(ImageGenerator):
 
     @staticmethod
     def iter_sse_json(response: httpx.Response) -> Iterable[dict[str, Any]]:
-        event_name: str | None = None
-        data_lines: list[str] = []
-
-        def flush() -> dict[str, Any] | None:
-            nonlocal event_name, data_lines
-            if not data_lines:
-                event_name = None
-                return None
-
-            raw = "\n".join(data_lines).strip()
-            event = event_name
-            event_name = None
-            data_lines = []
-
-            if not raw or raw == "[DONE]":
-                return None
-
-            payload = json.loads(raw)
-            if isinstance(payload, dict) and event and "type" not in payload:
-                payload["type"] = event
-            return payload
-
-        for line in response.iter_lines():
-            if isinstance(line, bytes):
-                line = line.decode("utf-8", errors="replace")
-            line = str(line)
-            if line == "":
-                payload = flush()
-                if payload is not None:
-                    yield payload
-                continue
-            if line.startswith(":"):
-                continue
-            if line.startswith("event:"):
-                event_name = line[len("event:") :].strip()
-            elif line.startswith("data:"):
-                data_lines.append(line[len("data:") :].lstrip())
-
-        payload = flush()
-        if payload is not None:
-            yield payload
+        return iter_sse_json_events(response.iter_lines())
 
     @classmethod
     def extract_image_b64(cls, value: Any) -> str | None:
@@ -444,6 +402,7 @@ class CodexImageGenerator(ImageGenerator):
         background: str = "opaque",
         partial_images: int = 1,
     ) -> str:
+        base_url = require_base_url(self.base_url, "CHATGPT_BACKEND_BASE_URL / base_url")
         headers = self.codex_headers(access_token)
         payload = self.build_payload(
             prompt,
@@ -460,30 +419,20 @@ class CodexImageGenerator(ImageGenerator):
             write=30.0,
             pool=30.0,
         )
-        latest_b64: str | None = None
-        with httpx.Client(timeout=timeout, headers=headers) as client:
+        with httpx.Client(
+            timeout=timeout, headers=headers, trust_env=False, follow_redirects=False,
+        ) as client:
             with client.stream(
-                "POST", f"{self.base_url.rstrip('/')}/responses", json=payload
+                "POST", f"{base_url}/responses", json=payload
             ) as response:
                 try:
                     response.raise_for_status()
                 except httpx.HTTPStatusError as exc:
-                    exc.response.read()
-                    snippet = exc.response.text[:800]
                     raise RuntimeError(
                         "Codex Responses API returned HTTP "
-                        f"{exc.response.status_code}: {snippet}"
-                    ) from exc
-                for event in self.iter_sse_json(response):
-                    found = self.extract_image_b64(event)
-                    if found:
-                        latest_b64 = found
-
-        if not latest_b64:
-            raise RuntimeError(
-                "Codex response contained no image_generation_call result"
-            )
-        return latest_b64
+                        f"{exc.response.status_code}"
+                    ) from None
+                return final_image_b64(self.iter_sse_json(response))
 
     def generate(self, prompt: str, **kwargs) -> bytes:
         access_token = (kwargs.pop("access_token", None) or "").strip() or None
@@ -500,6 +449,7 @@ class CodexImageGenerator(ImageGenerator):
             raise ValueError(f"Unsupported Codex image kwargs: {unknown}")
 
         self._validate_options(image_model, aspect_ratio)
+        require_base_url(self.base_url, "CHATGPT_BACKEND_BASE_URL / base_url")
         token = access_token or self.resolve_access_token()
         image_b64 = self.request_image_b64(
             token,
@@ -511,7 +461,7 @@ class CodexImageGenerator(ImageGenerator):
             background=background,
             partial_images=partial_images,
         )
-        return base64.b64decode(image_b64)
+        return _decode_final_image(image_b64)
 
     def get_models(self) -> list[dict[str, Any]]:
         models = []

@@ -47,6 +47,23 @@ Optional Tongyi/DashScope SDK extra:
 pip install -e ".[images]"
 ```
 
+## Reverse-proxy and request isolation
+
+`openai` / `crs` always use `OPENAI_API_BASE` from the selected ChatEnv profile. OpenAI/CRS calls, Codex OAuth/resource calls and shared image downloads ignore environment/system proxies and ambient proxy credentials, and reject redirects. An unavailable endpoint is an error, not permission to switch accounts, use an official fallback, or retry another Images/Responses protocol.
+
+```env
+OPENAI_API_BASE=https://crs.example.com/openai/v1
+```
+
+Codex OAuth mode additionally requires explicit authentication and backend Base URLs. Its credentials stay in that mode's profile/token store:
+
+```env
+OPENAI_OAUTH_BASE_URL=https://auth-relay.example.com
+CHATGPT_BACKEND_BASE_URL=https://gpt-relay.example.com/backend-api
+```
+
+A CRS caller key is not an OAuth access token. Responses returns an image only after a successful complete terminal event and a final image result; previews, failed or truncated streams are not success and never trigger automatic regeneration.
+
 ## CLI
 
 ```bash

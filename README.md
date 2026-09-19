@@ -47,6 +47,23 @@ pip install -e ".[dev]"
 pip install -e ".[images]"
 ```
 
+## 反向代理与请求隔离
+
+`openai` / `crs` 始终使用所选 ChatEnv profile 的 `OPENAI_API_BASE`。OpenAI/CRS、Codex OAuth/资源请求及共享图片下载不继承环境或系统 Proxy，不读取环境代理的隐式凭据，也不跟随重定向。目标不可用时返回错误，不自动切换账号、官方地址或 Images/Responses 协议。
+
+```env
+OPENAI_API_BASE=https://crs.example.com/openai/v1
+```
+
+Codex OAuth 模式另需显式配置认证与业务 Base URL，凭据仍保留在该模式自己的 profile/token store：
+
+```env
+OPENAI_OAUTH_BASE_URL=https://auth-relay.example.com
+CHATGPT_BACKEND_BASE_URL=https://gpt-relay.example.com/backend-api
+```
+
+CRS 调用 Key 与 OAuth access token 不可混用。Responses 只有在完整终态成功且存在最终图片时才返回结果；预览图、失败或截断流不作为成功，也不会自动再生成一张。
+
 ## CLI
 
 ```bash

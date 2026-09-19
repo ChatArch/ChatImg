@@ -5,7 +5,8 @@ from typing import Any
 
 import httpx
 
-DEFAULT_OPENAI_OAUTH_BASE_URL = "https://auth.openai.com"
+from chatimg.http import require_base_url
+
 CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
 CODEX_OAUTH_SCOPE = "openid profile email"
 
@@ -14,8 +15,8 @@ def _iso_z(value: datetime) -> str:
     return value.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def _token_url_from_base(base_url: str) -> str:
-    return f"{base_url.strip().rstrip('/')}/oauth/token"
+def _token_url_from_base(base_url: str | None) -> str:
+    return f"{require_base_url(base_url, 'OPENAI_OAUTH_BASE_URL / base_url')}/oauth/token"
 
 
 def refresh_codex_oauth_token(
@@ -38,10 +39,12 @@ def refresh_codex_oauth_token(
         raise ValueError("refresh_token is required")
 
     refreshed_at = now or datetime.now(timezone.utc)
-    resolved_base_url = base_url or DEFAULT_OPENAI_OAUTH_BASE_URL
-    resolved_token_url = _token_url_from_base(resolved_base_url)
+    resolved_token_url = _token_url_from_base(base_url)
     timeout = httpx.Timeout(max(5.0, float(timeout_seconds)))
-    with httpx.Client(timeout=timeout, headers={"Accept": "application/json"}) as client:
+    with httpx.Client(
+        timeout=timeout, headers={"Accept": "application/json"},
+        trust_env=False, follow_redirects=False,
+    ) as client:
         response = client.post(
             resolved_token_url,
             headers={"Content-Type": "application/x-www-form-urlencoded"},

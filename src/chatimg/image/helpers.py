@@ -5,6 +5,8 @@ from pathlib import Path
 
 import click
 
+from chatimg import http
+
 
 def download_binary(
     url: str,
@@ -13,9 +15,7 @@ def download_binary(
     *,
     timeout: float = 60.0,
 ) -> Path:
-    import requests
-
-    resp = requests.get(url, headers=headers or {}, timeout=timeout)
+    resp = http.get(url, headers=headers or {}, timeout=timeout)
     if resp.status_code != 200:
         raise RuntimeError(f"Failed to download image: {resp.status_code}")
     output_path = Path(output)
