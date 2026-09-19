@@ -56,7 +56,7 @@ def test_openai_compatible_generator_uses_active_chatenv_store_and_returns_png(m
         captured["timeout"] = timeout
         return Response()
 
-    monkeypatch.setattr("requests.post", fake_post)
+    monkeypatch.setattr("chatimg.http.post", fake_post)
     monkeypatch.setenv("CHATARCH_HOME", str(tmp_path))
     for name in ("OPENAI_API_BASE", "OPENAI_API_KEY", "OPENAI_IMAGE_MODEL"):
         monkeypatch.delenv(name, raising=False)
@@ -124,7 +124,7 @@ def test_openai_compatible_generator_prefers_explicit_api_key_over_oauth_token(m
         captured["headers"] = headers
         return Response()
 
-    monkeypatch.setattr("requests.post", fake_post)
+    monkeypatch.setattr("chatimg.http.post", fake_post)
     monkeypatch.setenv("CHATARCH_HOME", str(tmp_path))
     monkeypatch.setenv("OPENAI_ACCESS_TOKEN", "env-oauth-access-token")
     OpenAICompatibleImageGenerator(
@@ -606,7 +606,7 @@ def test_download_binary_uses_timeout_and_creates_parent(monkeypatch, tmp_path):
         calls["timeout"] = timeout
         return Response()
 
-    monkeypatch.setattr("requests.get", fake_get)
+    monkeypatch.setattr("chatimg.http.get", fake_get)
     output = tmp_path / "nested" / "image.png"
     saved = helpers.download_binary("https://example.com/image.png", output)
     assert saved == output

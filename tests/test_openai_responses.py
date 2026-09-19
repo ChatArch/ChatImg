@@ -44,7 +44,7 @@ def test_responses_request_uses_api_key_and_splits_carrier_from_image_model(monk
         captured.update(url=url, **kwargs)
         return response
 
-    monkeypatch.setattr("requests.post", post)
+    monkeypatch.setattr("chatimg.http.post", post)
     generator = OpenAICompatibleImageGenerator(
         api_key="caller-key",
         api_base="https://crs.example/openai/v1",
@@ -75,7 +75,7 @@ def test_responses_accepts_final_item_from_completed_output(monkeypatch):
 
     raw = base64.b64encode(b"completed-output").decode()
     response = StreamResponse(_sse({"type": "response.completed", "response": {"status": "completed", "output": [{"id": "img", "type": "image_generation_call", "status": "completed", "result": raw}]}}))
-    monkeypatch.setattr("requests.post", lambda *a, **k: response)
+    monkeypatch.setattr("chatimg.http.post", lambda *a, **k: response)
     generator = OpenAICompatibleImageGenerator(api_key="key", api_base="https://example/v1", api_mode="responses")
     assert generator.generate("fox") == b"completed-output"
     assert response.closed
@@ -89,7 +89,7 @@ def test_responses_rejects_terminal_frame_without_final_blank_line(monkeypatch):
         f'data: {{"type":"response.completed","response":{{"status":"completed","output":[{{"type":"image_generation_call","status":"completed","result":"{raw}"}}]}}}}'.encode(),
     ])
     calls = []
-    monkeypatch.setattr("requests.post", lambda *a, **k: calls.append(1) or response)
+    monkeypatch.setattr("chatimg.http.post", lambda *a, **k: calls.append(1) or response)
     generator = OpenAICompatibleImageGenerator(api_key="key", api_base="https://example/v1", api_mode="responses")
     with pytest.raises(RuntimeError, match="unterminated SSE frame"):
         generator.generate("fox")
@@ -109,7 +109,7 @@ def test_responses_rejects_unterminated_trailing_frame_after_success(monkeypatch
         + [b'data: {"type":"response.output_image_generation_call.partial_image","partial_image_b64":"cHJldmlldw=="}']
     )
     calls = []
-    monkeypatch.setattr("requests.post", lambda *a, **k: calls.append(1) or response)
+    monkeypatch.setattr("chatimg.http.post", lambda *a, **k: calls.append(1) or response)
     generator = OpenAICompatibleImageGenerator(api_key="key", api_base="https://example/v1", api_mode="responses")
     with pytest.raises(RuntimeError, match="unterminated SSE frame"):
         generator.generate("fox")
@@ -137,7 +137,7 @@ def test_responses_decodes_multiline_sse_frames_and_ignores_metadata(monkeypatch
         b"",
         b": trailing comment",
     ])
-    monkeypatch.setattr("requests.post", lambda *a, **k: response)
+    monkeypatch.setattr("chatimg.http.post", lambda *a, **k: response)
     generator = OpenAICompatibleImageGenerator(api_key="key", api_base="https://example/v1", api_mode="responses")
     assert generator.generate("fox") == b"multiline-image"
     assert response.closed
@@ -157,7 +157,7 @@ def test_responses_rejects_malformed_sse_shapes_as_runtime_error(monkeypatch, li
     from chatimg.image.openai_compatible import OpenAICompatibleImageGenerator
 
     response = StreamResponse(lines)
-    monkeypatch.setattr("requests.post", lambda *a, **k: response)
+    monkeypatch.setattr("chatimg.http.post", lambda *a, **k: response)
     generator = OpenAICompatibleImageGenerator(api_key="key", api_base="https://example/v1", api_mode="responses")
     with pytest.raises(RuntimeError):
         generator.generate("fox")
@@ -170,7 +170,7 @@ def test_responses_rejects_malformed_sse_shapes_as_runtime_error(monkeypatch, li
         ([{"type": "response.output_image_generation_call.partial_image", "partial_image_b64": "cHJldmlldw=="}, {"type": "response.completed", "response": {"status": "completed", "output": []}}], "final image"),
         ([{"type": "response.failed", "response": {"status": "failed"}}], "failed"),
         ([{"type": "response.incomplete", "response": {"status": "incomplete"}}], "incomplete"),
-        ([{"type": "response.completed", "response": {"status": "incomplete", "output": []}}], "incomplete"),
+        ([{"type": "response.completed", "response": {"status": "incomplete", "output": []}}], "not completed"),
         ([{"type": "response.output_item.done", "item": {"type": "image_generation_call", "status": "completed", "result": "ZmFrZQ=="}}], "terminal"),
         ([{"type": "response.completed", "response": {"status": "completed", "output": [{"type": "image_generation_call", "status": "completed", "result": "%%%"}]}}], "base64"),
     ],
@@ -180,7 +180,7 @@ def test_responses_rejects_non_success_and_malformed_streams(monkeypatch, events
 
     response = StreamResponse(_sse(*events))
     calls = []
-    monkeypatch.setattr("requests.post", lambda *a, **k: calls.append(1) or response)
+    monkeypatch.setattr("chatimg.http.post", lambda *a, **k: calls.append(1) or response)
     generator = OpenAICompatibleImageGenerator(api_key="key", api_base="https://example/v1", api_mode="responses")
     with pytest.raises(RuntimeError, match=match):
         generator.generate("fox")
@@ -196,10 +196,11 @@ def test_responses_rejects_late_error_after_final_item(monkeypatch):
         {"type": "error", "error": {"message": "late failure"}},
         {"type": "response.completed", "response": {"status": "completed", "output": []}},
     ))
-    monkeypatch.setattr("requests.post", lambda *a, **k: response)
+    monkeypatch.setattr("chatimg.http.post", lambda *a, **k: response)
     generator = OpenAICompatibleImageGenerator(api_key="key", api_base="https://example/v1", api_mode="responses")
-    with pytest.raises(RuntimeError, match="late failure"):
+    with pytest.raises(RuntimeError, match="error event") as error:
         generator.generate("fox")
+    assert "late failure" not in str(error.value)
     assert response.closed
 
 
@@ -208,7 +209,7 @@ def test_responses_rejects_unverified_tool_options_without_request(monkeypatch, 
     from chatimg.image.openai_compatible import OpenAICompatibleImageGenerator
 
     calls = []
-    monkeypatch.setattr("requests.post", lambda *a, **k: calls.append(1))
+    monkeypatch.setattr("chatimg.http.post", lambda *a, **k: calls.append(1))
     generator = OpenAICompatibleImageGenerator(api_key="key", api_base="https://example/v1", api_mode="responses")
     with pytest.raises(ValueError, match=match):
         generator.generate("fox", **kwargs)
@@ -226,13 +227,13 @@ def test_responses_forwards_background_and_rejects_unknown_kwargs(monkeypatch):
         captured.update(kwargs)
         return response
 
-    monkeypatch.setattr("requests.post", post)
+    monkeypatch.setattr("chatimg.http.post", post)
     generator = OpenAICompatibleImageGenerator(api_key="key", api_base="https://example/v1", api_mode="responses")
     assert generator.generate("fox", background="transparent") == b"image"
     assert captured["json"]["tools"][0]["background"] == "transparent"
 
     calls = []
-    monkeypatch.setattr("requests.post", lambda *a, **k: calls.append(1))
+    monkeypatch.setattr("chatimg.http.post", lambda *a, **k: calls.append(1))
     with pytest.raises(ValueError, match="unsupported Responses options: moderation"):
         generator.generate("fox", moderation="low")
     assert calls == []

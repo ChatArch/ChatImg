@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.9 - 2026-09-20
+
+### Fixed
+
+- Make OpenAI/CRS Images and Responses calls, Codex OAuth/resource calls and shared image downloads ignore ambient proxies and credentials, and reject redirects.
+- Require explicit usable Base URLs rather than silently selecting another upstream; retain named-profile and API-key/OAuth isolation with no automatic protocol fallback.
+- Share complete Responses stream validation with the Codex path, rejecting previews, failure events, truncated frames and incomplete terminal results instead of returning an unfinished image.
+- Add direct-transport, poisoned-proxy, endpoint-validation and complete-stream regressions.
+- Keep upstream HTTP/SSE error bodies out of CLI exceptions so echoed credentials or response data cannot leak through diagnostics.
+
 ## 0.1.8 - 2026-09-08
 
 ### Added
