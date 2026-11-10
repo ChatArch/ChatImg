@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.10 - 2026-11-11
+
+### Added
+
+- Add offline `chatimg collage diamond` for weaving four square images into one offset diamond collage, with reusable `create_diamond_collage` and `save_diamond_collage` APIs.
+- Preserve quadrant rotation/order, repeated first tiles and cropped boundaries; retain odd input pixels, avoid half-tile seams and composite transparency once onto black.
+- Require bounded Pillow, validate source geometry/tile size, and refuse overwriting existing output files.
+- Document the command and Python APIs in both languages, with offline layout, rotation, alpha, CLI and documentation regressions.
+
 ## 0.1.9 - 2026-09-20
 
 ### Fixed

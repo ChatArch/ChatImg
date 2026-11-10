@@ -17,6 +17,8 @@ chatimg
 │   ├── auth-status [--profile PROFILE]  # Show safe OpenAI OAuth profile status without token values.
 │   ├── generate [PROMPT] [--aspect-ratio ASPECT-RATIO] [--image-model IMAGE-MODEL] [--host-model HOST-MODEL] [--base-url BASE-URL] [--profile PROFILE] [--timeout TIMEOUT] [--output OUTPUT] [--interactive]  # Generate an image using the ChatGPT/Codex OAuth image bridge.
 │   └── list-models [--profile PROFILE]  # List built-in Codex image model presets.
+├── collage  # Local image composition tools (no API calls).
+│   └── diamond <IMAGES> [--output OUTPUT] [--tile-height TILE-HEIGHT]  # Weave four square images into one offset diamond collage.
 ├── huggingface  # Hugging Face tools.
 │   └── generate [PROMPT] [--output OUTPUT] [--interactive]  # Generate an image using Hugging Face.
 ├── liblib  # LiblibAI tools.
@@ -49,6 +51,8 @@ chatimg
 │   ├── auth-status  # Show safe OpenAI OAuth profile status without token values.
 │   ├── generate  # Generate an image using the ChatGPT/Codex OAuth image bridge.
 │   └── list-models  # List built-in Codex image model presets.
+├── collage  # Local image composition tools (no API calls).
+│   └── diamond  # Weave four square images into one offset diamond collage.
 ├── huggingface  # Hugging Face tools.
 │   └── generate  # Generate an image using Hugging Face.
 ├── liblib  # LiblibAI tools.

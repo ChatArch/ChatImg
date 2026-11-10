@@ -34,8 +34,31 @@ HF_GENERATE_SCHEMA = CommandSchema(
 @click.version_option(__version__, prog_name="chatimg")
 @add_tree_option(renderer_options={"root_name": "chatimg"})
 def main() -> None:
-    """ChatImg image generation tools."""
+    """ChatImg image generation and local composition tools."""
     pass
+
+
+@main.group()
+def collage():
+    """Local image composition tools (no API calls)."""
+    pass
+
+
+@collage.command(name="diamond")
+@click.argument("images", nargs=4, type=click.Path(exists=True, dir_okay=False))
+@click.option("--output", "-o", required=True, type=click.Path(dir_okay=False),
+              help="New PNG/JPEG/WebP output file; existing files are not overwritten.")
+@click.option("--tile-height", default=300, show_default=True,
+              type=click.IntRange(2, 2000), help="Height of each diamond tile in pixels.")
+def collage_diamond(images, output, tile_height):
+    """Weave four square images into one offset diamond collage."""
+    from chatimg.collage import save_diamond_collage
+
+    try:
+        path = save_diamond_collage(images, output, tile_height=tile_height)
+    except (OSError, ValueError) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(f"Image saved to {path}")
 
 
 @main.group()
