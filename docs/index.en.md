@@ -108,6 +108,29 @@ chatimg codex generate \
   --timeout 300
 ```
 
+## Local four-image diamond weave
+
+```bash
+chatimg collage diamond 1.png 2.png 3.png 4.png -o collage.png
+chatimg collage diamond 1.png 2.png 3.png 4.png --tile-height 600 -o large.png
+```
+
+Supply exactly four square images, at least 2×2 pixels each, in image 1–4 order. Their sizes may differ; non-square images are rejected rather than silently cropped. Each image is split into TL, TR, BR and BL quadrants, rotated -45°, 45°, 135° and 225°, then stretched into diamonds. Images 1/2 form the first layer; images 3/4 fill an offset layer shifted by half a tile. Each row repeats its first quadrant and retains the cropped boundary layout. This is not a four-panel grid.
+
+The default tile height is 300, with width `int(300 * 1.426)` and a **1921×750** output. `--tile-height` accepts 2–2000. Odd source sizes retain their last row/column; exact half-tile sampling avoids black seams. Source transparency is composited once onto black, producing an RGB image.
+
+This uses Pillow locally: no image-generation API, Key/profile or intermediate files. `-o` is required and supports PNG/JPEG/WebP. Existing outputs, including source images, are never overwritten; select a new filename.
+
+```python
+from chatimg.collage import save_diamond_collage
+
+output = save_diamond_collage(
+    ["1.png", "2.png", "3.png", "4.png"], "collage.png", tile_height=300
+)
+```
+
+`create_diamond_collage(images, tile_height=300)` accepts paths or Pillow images and returns a new Pillow RGB image without modifying its inputs. `save_diamond_collage` creates output parents, saves the result and returns its path.
+
 ## Python API
 
 ```python

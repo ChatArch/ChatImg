@@ -169,6 +169,29 @@ chatimg codex generate \
   --timeout 300
 ```
 
+## 本地四图菱形拼接
+
+```bash
+chatimg collage diamond 1.png 2.png 3.png 4.png -o collage.png
+chatimg collage diamond 1.png 2.png 3.png 4.png --tile-height 600 -o large.png
+```
+
+四张输入必须是至少 2×2 像素的方图，按参数顺序对应图 1～4；尺寸可不同，不会自动裁成方图。每图按左上、右上、右下、左下切块，分别旋转 -45°、45°、135°、225°并拉伸为菱形。图 1/2 铺第一层，图 3/4 横纵错开半块填入空隙；每行重复首块，并保留边界裁剪。这不是普通四宫格。
+
+默认块高 300、块宽 `int(300 * 1.426)`，输出 **1921×750**；`--tile-height` 支持 2～2000。奇数边长不丢末行/末列，半块偏移保留亚像素精度，避免黑缝。输入透明度只合成一次，最终铺在黑底上，输出 RGB 图片。
+
+纯本地 Pillow 处理，不调用生图 API、不需要 Key/profile，也不写中间图片。`-o` 为必填，支持 PNG/JPEG/WebP；已有输出（包括输入原图）不会被覆盖，请另选文件名。
+
+```python
+from chatimg.collage import save_diamond_collage
+
+output = save_diamond_collage(
+    ["1.png", "2.png", "3.png", "4.png"], "collage.png", tile_height=300
+)
+```
+
+`create_diamond_collage(images, tile_height=300)` 接受路径或 Pillow 图片，返回新的 Pillow RGB 图片，不修改输入；`save_diamond_collage` 负责创建输出父目录、保存和返回路径。
+
 ## Python API
 
 ```python

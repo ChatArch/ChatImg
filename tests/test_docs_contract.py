@@ -55,3 +55,16 @@ def test_responses_cli_contract_is_in_bilingual_docs():
     for path in [Path("docs/cli-tree.md"), Path("docs/cli-tree.en.md")]:
         text = path.read_text(encoding="utf-8")
         assert "[--api-mode API-MODE] [--profile PROFILE] [--host-model HOST-MODEL]" in text
+
+
+def test_local_diamond_collage_is_documented_in_both_languages():
+    for path in [Path("README.md"), Path("README.en.md"),
+                 Path("docs/index.md"), Path("docs/index.en.md")]:
+        text = path.read_text(encoding="utf-8")
+        assert "chatimg collage diamond 1.png 2.png 3.png 4.png -o collage.png" in text
+        assert "from chatimg.collage import" in text
+        assert "1921" in text and "750" in text
+    for path in [Path("docs/cli-tree.md"), Path("docs/cli-tree.en.md")]:
+        text = path.read_text(encoding="utf-8")
+        assert "collage  # Local image composition tools (no API calls)." in text
+        assert "diamond <IMAGES> [--output OUTPUT] [--tile-height TILE-HEIGHT]" in text
